@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Files → right-click → Scripts → "Send to phone" (docs/PHONE.md). Wi-Fi via KDE Connect, else the USB cable.
+mapfile -t files < <(printf '%s' "${NAUTILUS_SCRIPT_SELECTED_FILE_PATHS:-}" | sed '/^$/d')
+[ ${#files[@]} -gt 0 ] || files=("$@")
+out=$(phone send "${files[@]}" 2>&1) && notify-send -a Phone -i smartphone "Sent to phone" "${#files[@]} file(s)" \
+  || notify-send -a Phone -i dialog-warning -u critical "Couldn't send to phone" "${out:0:200}"

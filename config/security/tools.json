@@ -1,0 +1,337 @@
+[
+  {
+    "name": "nmap",
+    "category": "recon",
+    "gui": false
+  },
+  {
+    "name": "arp-scan",
+    "category": "recon",
+    "gui": false
+  },
+  {
+    "name": "masscan",
+    "category": "recon",
+    "gui": false
+  },
+  {
+    "name": "dnsrecon",
+    "category": "recon",
+    "gui": false
+  },
+  {
+    "name": "nbtscan",
+    "category": "recon",
+    "gui": false
+  },
+  {
+    "name": "enum4linux-ng",
+    "category": "recon",
+    "gui": false
+  },
+  {
+    "name": "nxc",
+    "category": "recon",
+    "gui": false
+  },
+  {
+    "name": "smbclient",
+    "category": "recon",
+    "gui": false
+  },
+  {
+    "name": "ldapsearch",
+    "category": "recon",
+    "gui": false
+  },
+  {
+    "name": "whatweb",
+    "category": "web",
+    "gui": false
+  },
+  {
+    "name": "wpscan",
+    "category": "web",
+    "gui": false
+  },
+  {
+    "name": "ffuf",
+    "category": "web",
+    "gui": false
+  },
+  {
+    "name": "gobuster",
+    "category": "web",
+    "gui": false
+  },
+  {
+    "name": "feroxbuster",
+    "category": "web",
+    "gui": false
+  },
+  {
+    "name": "nikto",
+    "category": "web",
+    "gui": false
+  },
+  {
+    "name": "sqlmap",
+    "category": "web",
+    "gui": false
+  },
+  {
+    "name": "airmon-ng",
+    "category": "wireless",
+    "gui": false
+  },
+  {
+    "name": "airodump-ng",
+    "category": "wireless",
+    "gui": false
+  },
+  {
+    "name": "bettercap",
+    "category": "wireless",
+    "gui": false
+  },
+  {
+    "name": "reaver",
+    "category": "wireless",
+    "gui": false
+  },
+  {
+    "name": "wifite",
+    "category": "wireless",
+    "gui": false
+  },
+  {
+    "name": "bully",
+    "category": "wireless",
+    "gui": false
+  },
+  {
+    "name": "hcxdumptool",
+    "category": "wireless",
+    "gui": false
+  },
+  {
+    "name": "hcxpcapngtool",
+    "category": "wireless",
+    "gui": false
+  },
+  {
+    "name": "iw",
+    "category": "wireless",
+    "gui": false
+  },
+  {
+    "name": "ghidra",
+    "category": "re",
+    "gui": true
+  },
+  {
+    "name": "cutter",
+    "category": "re",
+    "gui": true
+  },
+  {
+    "name": "jadx",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "frida",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "objection",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "ropper",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "radare2",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "gdb",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "ltrace",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "strace",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "apktool",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "adb",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "scrcpy",
+    "category": "re",
+    "gui": false
+  },
+  {
+    "name": "yara",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "binwalk",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "unblob",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "foremost",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "scalpel",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "steghide",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "zsteg",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "stegseek",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "vol",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "exiftool",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "mmls",
+    "category": "forensics",
+    "gui": false
+  },
+  {
+    "name": "trivy",
+    "category": "cloud",
+    "gui": false
+  },
+  {
+    "name": "syft",
+    "category": "cloud",
+    "gui": false
+  },
+  {
+    "name": "grype",
+    "category": "cloud",
+    "gui": false
+  },
+  {
+    "name": "semgrep",
+    "category": "cloud",
+    "gui": false
+  },
+  {
+    "name": "msfconsole",
+    "category": "frameworks",
+    "gui": false
+  },
+  {
+    "name": "zaproxy",
+    "category": "frameworks",
+    "gui": true
+  },
+  {
+    "name": "hashcat",
+    "category": "frameworks",
+    "gui": false
+  },
+  {
+    "name": "john",
+    "category": "frameworks",
+    "gui": false
+  },
+  {
+    "name": "hydra",
+    "category": "frameworks",
+    "gui": false
+  },
+  {
+    "name": "wireshark",
+    "category": "network",
+    "gui": true
+  },
+  {
+    "name": "tshark",
+    "category": "network",
+    "gui": false
+  },
+  {
+    "name": "tcpdump",
+    "category": "network",
+    "gui": false
+  },
+  {
+    "name": "dig",
+    "category": "network",
+    "gui": false
+  },
+  {
+    "name": "mtr",
+    "category": "network",
+    "gui": false
+  },
+  {
+    "name": "socat",
+    "category": "network",
+    "gui": false
+  },
+  {
+    "name": "iperf3",
+    "category": "network",
+    "gui": false
+  },
+  {
+    "name": "http",
+    "category": "network",
+    "gui": false
+  },
+  {
+    "name": "nc",
+    "category": "network",
+    "gui": false
+  }
+]

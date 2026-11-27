@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="488" height="128" viewBox="0 0 488 128" role="img" aria-labelledby="title desc">
+  <title id="title">KadaOS</title>
+  <desc id="desc">The open-command mark beside custom path lettering. For dark backgrounds.</desc>
+  <path fill="#ffffff" d="M24 48 40 24h48l16 24Z"/>
+  <path fill="#ffffff" d="m32 64 24 16-24 16v-8l12-8-12-8Z"/>
+  <path fill="#5b9cff" d="M64 88h32v8H64Z"/>
+  <g transform="translate(148 32)" fill="#ffffff" fill-rule="evenodd">
+    <path transform="translate(0 0)" d="M0 0h8v28L33 0h11L16 31l30 33H35L8 35v29H0Z"/>
+    <path transform="translate(52 0)" d="M34 20v-4h8v48h-8v-5c-4 4-8 6-14 6C7 65 0 55 0 40s8-25 21-25c6 0 10 2 13 5ZM8 40c0 11 5 18 13 18s13-7 13-18-5-18-13-18S8 29 8 40Z"/>
+    <path transform="translate(104 0)" d="M34 0h8v64h-8v-5c-4 4-8 6-14 6C7 65 0 55 0 40s8-25 21-25c6 0 10 2 13 5ZM8 40c0 11 5 18 13 18s13-7 13-18-5-18-13-18S8 29 8 40Z"/>
+    <path transform="translate(156 0)" d="M34 20v-4h8v48h-8v-5c-4 4-8 6-14 6C7 65 0 55 0 40s8-25 21-25c6 0 10 2 13 5ZM8 40c0 11 5 18 13 18s13-7 13-18-5-18-13-18S8 29 8 40Z"/>
+    <path transform="translate(211 0)" d="M27-1C10-1 0 11 0 32s10 33 27 33 27-12 27-33S44-1 27-1Zm0 8c12 0 19 9 19 25s-7 25-19 25S8 48 8 32 15 7 27 7Z"/>
+    <path transform="translate(276 0)" d="M44 5 40 12c-6-4-11-5-17-5-9 0-14 4-14 10 0 7 6 9 16 12 13 4 21 8 21 19 0 11-9 17-23 17-9 0-17-3-24-8l5-7c6 5 12 7 19 7 9 0 15-3 15-9 0-7-6-9-17-12C8 32 1 28 1 17 1 6 10-1 23-1c8 0 15 2 21 6Z"/>
+  </g>
+</svg>

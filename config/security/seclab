@@ -1,0 +1,574 @@
+#!/usr/bin/env python3
+"""Security workbench. Menu tools show help; explicit CLI arguments pass through.
+
+Engagements keep authorized work in one place: ~/Engagements/NAME/{scope.txt, notes.md, log.md, scans/, loot/}.
+`seclab run RECIPE TARGET` only runs against targets listed in the active engagement's scope, saves the
+output under scans/ and appends a line to log.md (a timeline for the report).
+`seclab finding "Title" -s high -t TARGET` records a finding (findings/NNN-title.md); `seclab report` builds
+report.md, report.html and report.pdf: summary by severity, scope, findings worst first, timeline, scan list.
+`seclab wifi` tells a USB monitor-mode adapter from the built-in card (`seclab wifi layout` opens the wireless layout);
+`seclab ctf NAME` makes ~/CTF/NAME and opens a CTF workspace; `seclab lab up|down|remove` an isolated VM network."""
+import datetime
+import ipaddress
+import json
+import os
+import re
+import urllib.parse
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+TOOLS = json.loads((Path(__file__).resolve().parent / 'tools.json').read_text())
+BY_NAME = {t['name']: t for t in TOOLS}
+
+def check(category=None):
+    missing = 0
+    for tool in TOOLS:
+        if category and tool['category'] != category:
+            continue
+        path = shutil.which(tool['name'])
+        print(f"{'PASS' if path else 'FAIL'} {tool['name']}: {path or 'not on PATH'}")
+        missing += not bool(path)
+    print(f'{missing} missing commands (presence check; not a functional test).')
+    return min(missing, 125)
+
+# Category display order, label and icon. 're' holds reverse-engineering AND mobile tooling.
+CATEGORY_META = [
+    ('recon', 'Recon & enumeration', 'system-search-symbolic'),
+    ('network', 'Network', 'network-wired-symbolic'),
+    ('web', 'Web apps', 'web-browser-symbolic'),
+    ('wireless', 'Wi-Fi & wireless', 'network-wireless-symbolic'),
+    ('re', 'Reverse engineering & mobile', 'application-x-executable-symbolic'),
+    ('forensics', 'Forensics', 'drive-harddisk-symbolic'),
+    ('cloud', 'Cloud', 'network-server-symbolic'),
+    ('frameworks', 'Frameworks', 'applications-system-symbolic'),
+]
+
+# ── engagements ─────────────────────────────────────────────────────────────
+ENG_ROOT = Path(os.environ.get('SECLAB_ROOT', Path.home() / 'Engagements'))
+ACTIVE = Path(os.environ.get('SECLAB_STATE', Path.home() / '.local/state/seclab')) / 'active'
+WORDLIST = '/usr/share/dirb/wordlists/common.txt'
+# argv templates (never a shell). {t} = target host/IP/CIDR, {u} = URL, {o} = output path without extension.
+RECIPES = {
+    'lan-discover':  ('Find live devices (ping sweep)',      ['nmap', '-sn', '{t}', '-oA', '{o}']),
+    'nmap-quick':    ('Quick port scan (top 100)',          ['nmap', '-T4', '-F', '{t}', '-oA', '{o}']),
+    'nmap-services': ('Service + default scripts',          ['nmap', '-sV', '-sC', '-T4', '{t}', '-oA', '{o}']),
+    'nmap-full':     ('All 65535 TCP ports',                ['nmap', '-p-', '-T4', '{t}', '-oA', '{o}']),
+    'nmap-vuln':     ('Known-vulnerability scripts',        ['nmap', '-sV', '--script', 'vuln', '-T4', '{t}', '-oA', '{o}']),
+    'web-fingerprint': ('Identify web stack',               ['whatweb', '-a', '3', '{u}']),
+    'web-dirs':      ('Directory brute force (dirb common)', ['gobuster', 'dir', '-u', '{u}', '-w', WORDLIST, '-q']),
+    'web-nikto':     ('Web server misconfig scan',          ['nikto', '-h', '{u}']),
+    'smb-shares':    ('List SMB shares (anonymous)',        ['smbclient', '-L', '//{t}', '-N']),
+}
+
+def _slug(text):
+    return re.sub(r'[^A-Za-z0-9._-]+', '-', text).strip('-')[:60] or 'x'
+
+def active():
+    try:
+        name = ACTIVE.read_text().strip()
+    except OSError:
+        return None
+    return ENG_ROOT / name if name and (ENG_ROOT / name / 'scope.txt').exists() else None
+
+def new_engagement(name):
+    eng = ENG_ROOT / _slug(name)
+    for d in ('scans', 'loot', 'screenshots'):
+        (eng / d).mkdir(parents=True, exist_ok=True)
+    if not (eng / 'scope.txt').exists():
+        (eng / 'scope.txt').write_text('# In-scope targets, one per line: IP, CIDR (10.0.0.0/24), host or domain\n'
+                                       '# (a domain also covers its subdomains). Only list what you are authorized to test.\n')
+    if not (eng / 'notes.md').exists():
+        (eng / 'notes.md').write_text(f'# {name}\n\n- Authorization / contact:\n- Window:\n- Rules of engagement:\n\n## Findings\n')
+    ACTIVE.parent.mkdir(parents=True, exist_ok=True); ACTIVE.write_text(eng.name)
+    return eng
+
+def scope(eng):
+    return [l.strip() for l in (eng / 'scope.txt').read_text().splitlines() if l.strip() and not l.lstrip().startswith('#')]
+
+def host_of(target):
+    if '://' in target:
+        return urllib.parse.urlsplit(target).hostname or ''
+    return target.split('/')[0] if not re.match(r'^[\d.:a-fA-F]+/\d+$', target) else target
+
+def in_scope(target, entries):
+    """True only if the target (IP, CIDR, host or URL) lies entirely inside one scope entry."""
+    host = host_of(target).lower().rstrip('.')
+    if not host:
+        return False
+    try:
+        net = ipaddress.ip_network(host, strict=False)
+    except ValueError:
+        net = None
+    for e in entries:
+        e = e.lower().rstrip('.')
+        try:
+            enet = ipaddress.ip_network(e, strict=False)
+        except ValueError:
+            enet = None
+        if net and enet:
+            if net.version == enet.version and net.subnet_of(enet):
+                return True
+        elif not net and not enet and (host == e or host.endswith('.' + e)):
+            return True
+    return False
+
+def build(recipe, target, out):
+    host = host_of(target)
+    url = target if '://' in target else f'http://{host}'
+    return [a.format(t=host if '://' in target else target, u=url, o=out) for a in RECIPES[recipe][1]]
+
+def run_recipe(recipe, target):
+    eng = active()
+    if not eng:
+        raise ValueError('No active engagement. Start one: seclab new NAME')
+    if recipe not in RECIPES:
+        raise ValueError(f'Unknown recipe. Choose: {", ".join(RECIPES)}')
+    if not in_scope(target, scope(eng)):
+        raise ValueError(f'{target} is not in the scope of "{eng.name}". Add it to {eng / "scope.txt"} only if authorized.')
+    stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+    out = eng / 'scans' / f'{stamp}-{recipe}-{_slug(host_of(target))}'
+    argv = build(recipe, target, str(out))
+    if not shutil.which(argv[0]):
+        raise ValueError(f'{argv[0]} is not installed')
+    print(f'\033[1m▶ {" ".join(argv)}\033[0m  (saving to {out}.txt)\n', flush=True)
+    with open(f'{out}.txt', 'w') as log:
+        with subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1) as proc:
+            for line in proc.stdout:
+                sys.stdout.write(line); log.write(line)
+        code = proc.returncode
+    with open(eng / 'log.md', 'a') as tl:
+        tl.write(f'- {datetime.datetime.now():%Y-%m-%d %I:%M %p} · `{recipe}` on `{target}` → exit {code} · scans/{out.name}.txt\n')
+    return code
+
+# ── findings + report ──
+SEVERITIES = ('critical', 'high', 'medium', 'low', 'info')
+FINDING_TEMPLATE = """---
+title: {title}
+severity: {severity}
+target: {target}
+status: open
+---
+
+## Description
+What is wrong, in plain words.
+
+## Evidence
+Commands, output, screenshots (screenshots/NAME.png). Scan files: scans/…
+
+## Impact
+What an attacker could do with it.
+
+## Remediation
+How to fix it, most effective first.
+"""
+
+def parse_finding(text):
+    """(front-matter dict, body) of a finding file."""
+    meta, body = {}, text
+    m = re.match(r'^---\n(.*?)\n---\n?(.*)$', text, re.S)
+    if m:
+        for line in m.group(1).splitlines():
+            k, _, v = line.partition(':')
+            if k.strip(): meta[k.strip().lower()] = v.strip()
+        body = m.group(2)
+    meta['severity'] = meta.get('severity', 'info').lower()
+    if meta['severity'] not in SEVERITIES: meta['severity'] = 'info'
+    return meta, body.strip()
+
+def findings(eng):
+    out = []
+    for f in sorted((eng / 'findings').glob('*.md')) if (eng / 'findings').exists() else []:
+        meta, body = parse_finding(f.read_text())
+        meta.setdefault('title', f.stem); out.append((meta, body, f))
+    return sorted(out, key=lambda x: (SEVERITIES.index(x[0]['severity']), x[2].name))
+
+def add_finding(eng, title, severity='medium', target=''):
+    if severity not in SEVERITIES:
+        raise ValueError(f'severity: {", ".join(SEVERITIES)}')
+    d = eng / 'findings'; d.mkdir(exist_ok=True)
+    n = len(list(d.glob('*.md'))) + 1
+    f = d / f'{n:03d}-{_slug(title).lower()}.md'
+    f.write_text(FINDING_TEMPLATE.format(title=title, severity=severity, target=target))
+    return f
+
+def _notes_field(notes, label):
+    m = re.search(rf'^- {re.escape(label)}:[ \t]*(.*)$', notes, re.M | re.I)
+    return m.group(1).strip() if m else ''
+
+def report_md(eng, today=None):
+    """The engagement report as Markdown: summary, scope, findings worst first, timeline, scans."""
+    notes = (eng / 'notes.md').read_text() if (eng / 'notes.md').exists() else ''
+    fs = findings(eng)
+    counts = {s: sum(1 for m, _, _ in fs if m['severity'] == s) for s in SEVERITIES}
+    today = today or datetime.date.today().isoformat()
+    L = [f'# Security assessment: {eng.name}', '', f'**Date:** {today}  ']
+    for label in ('Authorization / contact', 'Window', 'Rules of engagement'):
+        v = _notes_field(notes, label)
+        if v: L.append(f'**{label}:** {v}  ')
+    L += ['', '## Summary', '', '| Severity | Findings |', '|---|---|'] + [f'| {s.capitalize()} | {counts[s]} |' for s in SEVERITIES]
+    worst = next((s for s in SEVERITIES if counts[s]), None)
+    L += ['', f'{len(fs)} finding{"s" if len(fs) != 1 else ""}' + (f'; the most serious is rated **{worst}**.' if worst else '.'), '']
+    L += ['## Scope', ''] + [f'- `{t}`' for t in scope(eng)] + ['']
+    L += ['## Findings', '']
+    if not fs: L += ['No findings recorded.', '']
+    for i, (m, body, _) in enumerate(fs, 1):
+        L += [f'### {i}. {m["title"]}', '', f'**Severity:** {m["severity"].capitalize()}'
+              + (f' · **Target:** `{m["target"]}`' if m.get('target') else '') + (f' · **Status:** {m["status"]}' if m.get('status') else ''), '']
+        L += [re.sub(r'^## ', '#### ', body, flags=re.M), '']
+    log = (eng / 'log.md').read_text().strip() if (eng / 'log.md').exists() else ''
+    L += ['## Timeline', '', log or 'No scans were run through seclab.', '']
+    scans = sorted(p.name for p in (eng / 'scans').glob('*.txt')) if (eng / 'scans').exists() else []
+    if scans: L += ['## Appendix: scan output files', ''] + [f'- scans/{n}' for n in scans] + ['']
+    return '\n'.join(L)
+
+REPORT_CSS = """body{font:11pt/1.5 'Adwaita Sans','Ubuntu Sans',sans-serif;color:#1d1f23;max-width:46em;margin:2em auto;padding:0 1em}
+h1{font-size:22pt;border-bottom:3px solid #2b3a55;padding-bottom:.2em}h2{color:#2b3a55;margin-top:1.6em;border-bottom:1px solid #ccd}
+h3{margin-top:1.4em;page-break-after:avoid}table{border-collapse:collapse}td,th{border:1px solid #ccd;padding:.25em .8em;text-align:left}
+code,pre{font-family:'JetBrains Mono',monospace;font-size:9.5pt;background:#f2f3f6}pre{padding:.6em;white-space:pre-wrap}
+@page{margin:18mm}"""
+
+def write_report(eng, pdf=True):
+    md = report_md(eng)
+    out = eng / 'report.md'; out.write_text(md)
+    made = [out]
+    if pdf:
+        try:
+            import markdown
+        except ImportError:
+            return made
+        html = eng / 'report.html'
+        html.write_text(f'<!doctype html><meta charset="utf-8"><title>{eng.name}</title><style>{REPORT_CSS}</style>'
+                        + markdown.markdown(md, extensions=['tables', 'fenced_code']))
+        made.append(html)
+        chrome = shutil.which('google-chrome-stable') or shutil.which('chromium')
+        if chrome:
+            import tempfile
+            with tempfile.TemporaryDirectory() as prof:
+                subprocess.run([chrome, '--headless=new', '--disable-gpu', '--no-pdf-header-footer', f'--user-data-dir={prof}',
+                                f'--print-to-pdf={eng / "report.pdf"}', html.as_uri()], capture_output=True, timeout=60, stdin=subprocess.DEVNULL)
+            if (eng / 'report.pdf').exists(): made.append(eng / 'report.pdf')
+    return made
+
+# ── wireless kit, CTF workspace, isolated lab network ──
+SYS_NET = Path('/sys/class/ieee80211')
+
+def wifi_adapters(sysroot=None, iw_info=None):
+    """[{phy, iface, driver, bus, monitor, internal}] for every Wi-Fi radio. internal = the laptop's own card
+    (PCI/SDIO); putting that in monitor mode drops your Wi-Fi, so testing wants a USB adapter."""
+    root = Path(sysroot) if sysroot else SYS_NET
+    out = []
+    for p in sorted(root.glob('phy*')) if root.exists() else []:
+        info = iw_info(p.name) if iw_info else subprocess.run(['iw', 'phy', p.name, 'info'], capture_output=True, text=True).stdout
+        modes = info.split('Supported interface modes:', 1)[1].split('Band', 1)[0] if 'Supported interface modes:' in info else ''
+        dev = p / 'device'
+        bus = Path(os.path.realpath(dev / 'subsystem')).name if (dev / 'subsystem').exists() else ''
+        drv = Path(os.path.realpath(dev / 'driver')).name if (dev / 'driver').exists() else ''
+        ifaces = sorted(n.name for n in (dev / 'net').iterdir()) if (dev / 'net').exists() else []
+        out.append({'phy': p.name, 'iface': ', '.join(ifaces), 'driver': drv, 'bus': bus, 'monitor': '* monitor' in modes,
+                    'injection_hint': drv in ('rt2800usb', 'ath9k_htc', 'mt76x2u', 'mt7921u', 'rtl8812au', '88XXau', '8812au'),
+                    'internal': bus not in ('usb',)})
+    return out
+
+def wifi_report():
+    ads = wifi_adapters()
+    if not ads:
+        print('No Wi-Fi radios found.'); return 1
+    for a in ads:
+        kind = 'built-in card' if a['internal'] else 'USB adapter'
+        print(f"{a['phy']}  {a['iface'] or '-':<10} {kind:<13} {a['driver']:<16} monitor mode: {'yes' if a['monitor'] else 'no'}"
+              + ('  (known to inject well)' if a['injection_hint'] else ''))
+    if not any(not a['internal'] and a['monitor'] for a in ads):
+        print('\nNo USB adapter with monitor mode. Using the built-in card for monitor mode disconnects your Wi-Fi;\n'
+              'plug in a USB adapter (e.g. MT7921AU / RT3070 / AR9271) for wireless testing, then run seclab wifi again.')
+    return 0
+
+CTF_ROOT = Path(os.environ.get('SECLAB_CTF', Path.home() / 'CTF'))
+
+def new_ctf(name):
+    d = CTF_ROOT / _slug(name)
+    for sub in ('files', 'exploits', 'loot'):
+        (d / sub).mkdir(parents=True, exist_ok=True)
+    if not (d / 'notes.md').exists():
+        (d / 'notes.md').write_text(f'# {name}\n\n| Challenge | Category | Points | Status | Flag |\n|---|---|---|---|---|\n\n## Notes\n')
+    return d
+
+def open_ctf(d):
+    """Empty workspace: VS Code on the CTF folder, two terminals there, a browser."""
+    h = lambda *a: subprocess.run(['hyprctl', 'dispatch', *a], capture_output=True)
+    h('workspace', 'empty')
+    q = shlex_quote(str(d))
+    if shutil.which('code'): h('exec', f'code --new-window {q}')
+    for _ in range(2):
+        if shutil.which('ptyxis'): h('exec', f'ptyxis --new-window -d {q}')
+    if shutil.which('google-chrome-stable'): h('exec', 'google-chrome-stable --new-window')
+
+def shlex_quote(s):
+    import shlex
+    return shlex.quote(s)
+
+LAB_NET = 'seclab-lab'
+LAB_XML = f"""<network>
+  <name>{LAB_NET}</name>
+  <!-- no <forward>: isolated. VMs reach each other and this laptop, never the LAN or the Internet -->
+  <bridge name='virbr-seclab' stp='on' delay='0'/>
+  <ip address='10.66.0.1' netmask='255.255.255.0'>
+    <dhcp><range start='10.66.0.100' end='10.66.0.200'/></dhcp>
+  </ip>
+</network>
+"""
+
+def lab(action):
+    v = lambda *a: subprocess.run(['virsh', '-c', 'qemu:///system', *a], capture_output=True, text=True)
+    if not shutil.which('virsh'):
+        raise ValueError('libvirt is not installed (phase 6 installs it)')
+    exists = LAB_NET in v('net-list', '--all', '--name').stdout.split()
+    if action == 'up':
+        if not exists:
+            import tempfile
+            with tempfile.NamedTemporaryFile('w', suffix='.xml', delete=False) as f:
+                f.write(LAB_XML)
+            r = v('net-define', f.name); os.unlink(f.name)
+            if r.returncode: raise ValueError(r.stderr.strip())
+        v('net-start', LAB_NET); v('net-autostart', '--disable', LAB_NET)
+        print(f'Lab network {LAB_NET} is up: 10.66.0.0/24, isolated (no LAN, no Internet).\n'
+              f'In virt-manager pick network "{LAB_NET}" for the target VMs. Add 10.66.0.0/24 to the engagement scope to scan it.')
+        return 0
+    if action == 'down':
+        if exists: v('net-destroy', LAB_NET)
+        print('Lab network stopped.'); return 0
+    if action == 'remove':
+        if exists: v('net-destroy', LAB_NET); v('net-undefine', LAB_NET)
+        print('Lab network removed.'); return 0
+    info = v('net-info', LAB_NET).stdout if exists else ''
+    active = re.search(r'Active:\s+yes', info) is not None
+    print(f'{LAB_NET}: ' + ('up (10.66.0.0/24, isolated)' if active else 'defined, stopped (seclab lab up)' if exists else 'not set up (seclab lab up)'))
+    if active:
+        leases = v('net-dhcp-leases', LAB_NET).stdout.strip().splitlines()[2:]
+        for l in leases: print('  ' + ' '.join(l.split()[2:5]))
+    return 0
+
+BACK = '__back__'
+
+def _pick(title, items, placeholder='', free=False, grid=False, back=False):
+    """Themed picker (myos-pick) with a rofi fallback. items: list of (label, icon, subtitle).
+    back=True (submenus): returns BACK when the user goes back (arrow or Backspace)."""
+    mp = Path.home() / '.local/bin/myos-pick'
+    if mp.exists():
+        cmd = [str(mp), '--title', title]
+        if placeholder:
+            cmd += ['--placeholder', placeholder]
+        if free:
+            cmd += ['--input']
+        if grid:
+            cmd += ['--grid']
+        if back:
+            cmd += ['--back']
+        inp = '' if free else '\n'.join('\t'.join(c for c in it) for it in items)
+        r = subprocess.run(cmd, input=inp, text=True, capture_output=True)
+        return BACK if r.returncode == 2 else r.stdout.strip() if r.returncode == 0 else ''
+    r = subprocess.run(['rofi', '-dmenu', '-i', '-p', title] + ([] if free else ['-no-custom']),
+                       input='' if free else '\n'.join(it[0] for it in items), text=True, capture_output=True)
+    return r.stdout.strip() if r.returncode == 0 else ''
+
+def run_tool(name):
+    if not shutil.which(name):
+        subprocess.run(['notify-send', 'Security lab', f'{name} is missing. See docs/SECURITY_LAB.md.'])
+        return 1
+    if BY_NAME[name]['gui']:
+        subprocess.Popen([name], start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return 0
+    # CLI tools open in a terminal showing their help (authorized-use; the user drives the actual run)
+    subprocess.Popen(['kitty', '--hold', '-e', str(Path(__file__).resolve()), name, '--help'], start_new_session=True)
+    return 0
+
+def category_menu(cat, label):
+    tools = [t for t in TOOLS if t['category'] == cat]
+    items = [(t['name'], 'application-x-executable-symbolic' if t['gui'] else 'utilities-terminal-symbolic',
+              ('app' if t['gui'] else 'command') + ('' if shutil.which(t['name']) else ' · missing')) for t in tools]
+    sel = _pick(label, items, back=True)
+    if sel == BACK:
+        return menu()
+    if not sel:
+        return 0
+    if sel in BY_NAME:
+        return run_tool(sel)
+    return 1
+
+def _term(*args):
+    subprocess.Popen(['kitty', '--hold', '-e', str(Path(__file__).resolve()), *args], start_new_session=True)
+
+def engagement_menu():
+    names = sorted(p.name for p in ENG_ROOT.glob('*/scope.txt') for p in [p.parent]) if ENG_ROOT.exists() else []
+    cur = active()
+    rows = [('New engagement…', 'list-add-symbolic', 'creates scope, notes, scans/ and loot/')]
+    if cur:
+        rows += [('Edit scope', 'document-edit-symbolic', str(cur / 'scope.txt')),
+                 ('Open folder', 'folder-open-symbolic', str(cur))]
+    rows += [(n, 'folder-symbolic', 'active' if cur and cur.name == n else 'switch to this') for n in names]
+    sel = _pick('Engagements', rows, back=True)
+    if sel == BACK:
+        return menu()
+    if sel == 'New engagement…':
+        name = _pick('New engagement', [], placeholder='Name, e.g. home-lab or client-2026-q4', free=True).strip()
+        if name:
+            eng = new_engagement(name)
+            subprocess.Popen(['xdg-open', str(eng / 'scope.txt')], start_new_session=True)
+    elif sel == 'Edit scope' and cur:
+        subprocess.Popen(['xdg-open', str(cur / 'scope.txt')], start_new_session=True)
+    elif sel == 'Open folder' and cur:
+        subprocess.Popen(['xdg-open', str(cur)], start_new_session=True)
+    elif sel in names:
+        ACTIVE.parent.mkdir(parents=True, exist_ok=True); ACTIVE.write_text(sel)
+        subprocess.run(['notify-send', 'Security lab', f'Active engagement: {sel}'])
+    return 0
+
+def recipe_menu():
+    eng = active()
+    if not eng:
+        return engagement_menu()
+    targets = scope(eng)
+    if not targets:
+        subprocess.run(['notify-send', 'Security lab', f'No targets in scope yet. Add them to {eng / "scope.txt"}'])
+        subprocess.Popen(['xdg-open', str(eng / 'scope.txt')], start_new_session=True)
+        return 0
+    rec = _pick(f'Recipe · {eng.name}', [(k, 'media-playback-start-symbolic', v[0] + ('' if shutil.which(v[1][0]) else ' · missing'))
+                                         for k, v in RECIPES.items()], back=True)
+    if rec == BACK:
+        return menu()
+    if rec not in RECIPES:
+        return 0
+    tgt = _pick(f'{rec} · target', [(t, 'network-server-symbolic', 'in scope') for t in targets], back=True)
+    if tgt == BACK:
+        return recipe_menu()
+    if tgt:
+        _term('run', rec, tgt)
+    return 0
+
+def menu():
+    present = {t['category'] for t in TOOLS}
+    cats = [(lbl, icon, f"{sum(1 for t in TOOLS if t['category'] == key)} tools") for key, lbl, icon in CATEGORY_META if key in present]
+    fixed = [('Ask the assistant', 'chat-message-new-symbolic', 'it can run your recipes and tools'),
+             ('Wireless interfaces', 'network-wireless-symbolic', 'list wireless adapters'),
+             ('Check installation', 'emblem-ok-symbolic', 'verify all tools are present')]
+    eng = active()
+    head = [(f'Engagement: {eng.name}' if eng else 'Start an engagement', 'folder-symbolic',
+             f'{len(scope(eng))} targets in scope · switch or new' if eng else 'scope + saved results for a job'),
+            ('Run a recipe', 'media-playback-start-symbolic',
+             'scan an in-scope target, output saved' if eng else 'needs an engagement first')]
+    rows = head + cats + fixed
+    label_to_cat = {lbl: key for key, lbl, _ in CATEGORY_META}
+    selected = _pick('Security lab', rows, grid=True)
+    if not selected:
+        return 0
+    if selected in label_to_cat:
+        return category_menu(label_to_cat[selected], selected)
+    if selected.startswith('Engagement:') or selected == 'Start an engagement':
+        return engagement_menu()
+    if selected == 'Run a recipe':
+        return recipe_menu()
+    if selected == 'Ask the assistant':
+        subprocess.Popen([str(Path.home() / '.local/bin/ai-chat')], start_new_session=True)
+        return 0
+    if selected == 'Wireless interfaces':
+        subprocess.Popen(['kitty', '--hold', '-e', str(Path(__file__).resolve()), 'wifi'], start_new_session=True)
+        return 0
+    if selected == 'Check installation':
+        subprocess.Popen(['kitty', '--hold', '-e', str(Path(__file__).resolve()), 'check'], start_new_session=True)
+        return 0
+    return 1
+
+def main(args):
+    command = args[0] if args else 'menu'
+    rest = args[1:]
+    if command == 'menu':
+        return menu()
+    if command == 'list':
+        for tool in TOOLS:
+            print(f"{tool['category']:12} {tool['name']:18} {'available' if shutil.which(tool['name']) else 'missing'}")
+        return 0
+    if command == 'check':
+        if rest and rest[0] not in {t['category'] for t in TOOLS}:
+            raise ValueError('Unknown category')
+        return check(rest[0] if rest else None)
+    if command == 'new':
+        if not rest:
+            raise ValueError('Usage: seclab new NAME')
+        print(new_engagement(' '.join(rest)))
+        return 0
+    if command == 'use':
+        if not rest or not (ENG_ROOT / rest[0] / 'scope.txt').exists():
+            raise ValueError('Usage: seclab use NAME (an existing engagement)')
+        ACTIVE.parent.mkdir(parents=True, exist_ok=True); ACTIVE.write_text(rest[0])
+        return 0
+    if command == 'scope':
+        eng = active()
+        if not eng:
+            raise ValueError('No active engagement. Start one: seclab new NAME')
+        if rest[:1] == ['add'] and rest[1:]:
+            with open(eng / 'scope.txt', 'a') as f:
+                f.write(''.join(t + '\n' for t in rest[1:]))
+        print(f'{eng.name}:'); [print('  ' + t) for t in scope(eng)]
+        return 0
+    if command == 'run':
+        if len(rest) != 2:
+            raise ValueError('Usage: seclab run RECIPE TARGET   (recipes: ' + ', '.join(RECIPES) + ')')
+        return run_recipe(*rest)
+    if command in ('finding', 'findings', 'report'):
+        eng = active()
+        if not eng:
+            raise ValueError('No active engagement. Start one: seclab new NAME')
+        if command == 'findings':
+            for m, _, f in findings(eng):
+                print(f"{m['severity']:<9} {m.get('status', ''):<7} {m['title']}  ({f.name})")
+            return 0
+        if command == 'finding':
+            sev = rest[rest.index('-s') + 1] if '-s' in rest else 'medium'
+            tgt = rest[rest.index('-t') + 1] if '-t' in rest else ''
+            words = [w for i, w in enumerate(rest) if w not in ('-s', '-t') and (i == 0 or rest[i - 1] not in ('-s', '-t'))]
+            if not words:
+                raise ValueError('Usage: seclab finding "Title" [-s critical|high|medium|low|info] [-t TARGET]')
+            f = add_finding(eng, ' '.join(words), sev.lower(), tgt)
+            print(f)
+            if sys.stdout.isatty() and os.environ.get('EDITOR'):
+                os.execvp(os.environ['EDITOR'], [os.environ['EDITOR'], str(f)])
+            return 0
+        for f in write_report(eng, pdf='--md' not in rest):
+            print(f)
+        return 0
+    if command == 'recipes':
+        for k, (desc, argv) in RECIPES.items():
+            print(f'{k:16} {desc:36} {" ".join(argv)}')
+        return 0
+    if command == 'wifi':
+        if rest[:1] == ['layout']:
+            os.execvp(sys.executable, [sys.executable, str(Path.home() / '.config/hypr/scripts/flow.py'), 'Wireless'])
+        return wifi_report()
+    if command == 'ctf':
+        if not rest:
+            raise ValueError('Usage: seclab ctf NAME   (folder in ~/CTF with notes, files/, exploits/, then the CTF layout)')
+        d = new_ctf(' '.join(rest)); print(d)
+        if '--no-open' not in rest: open_ctf(d)
+        return 0
+    if command == 'lab':
+        return lab(rest[0] if rest else 'status')
+    if command in ('ai', 'why', 'rag'):
+        if command == 'ai':
+            if not rest:
+                raise ValueError('Usage: seclab ai QUESTION')
+            prompt = ('Help with authorized security testing and reverse engineering. '
+                      'Explain commands, assumptions and limitations. Do not claim to have run tools. '
+                      'Question: ' + ' '.join(rest))
+            os.execvp('fai', ['fai', 'ask', '--', prompt])
+        os.execvp('fai', ['fai', command, *rest])
+    if command not in BY_NAME:
+        raise ValueError('Unknown tool. Use seclab list, new, use, scope, run, recipes, finding, findings, report, wifi, ctf, lab, ai, why, rag, or check.')
+    os.execvp(command, [command, *rest])
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except (OSError, ValueError) as error:
+        print(f'seclab: {error}', file=sys.stderr)
+        sys.exit(1)

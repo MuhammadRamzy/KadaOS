@@ -1,0 +1,9 @@
+[Unit]
+Description=KadaOS semantic file index (fai index)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/fai index --on-ac
+TimeoutStartSec=30min
+Nice=15
+IOSchedulingClass=idle

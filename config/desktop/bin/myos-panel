@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# myos-panel wifi|bluetooth|clipboard|calendar|inbox — open a panel page (again: close).
+# Fast path: tell the running panel over D-Bus (~10 ms). First use starts it (~1 s).
+p="${1:-wifi}"
+gdbus call --session --dest org.myos.Panel --object-path /org/myos/Panel \
+  --method org.gtk.Actions.Activate show "[<'$p'>]" '{}' >/dev/null 2>&1 && exit 0
+exec python3 ~/.local/share/myos/panel.py "$p"

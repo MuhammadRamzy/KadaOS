@@ -1,0 +1,22 @@
+configuration {
+  modi: "drun,run,window";
+  show-icons: false;   /* text menus get no empty icon column; the launcher passes -show-icons */
+  icon-theme: "Papirus-Dark";
+  terminal: "ptyxis";
+  drun-display-format: "{name}[<span size='small' alpha='55%'>   {generic}</span>]";
+  display-drun: "󰀃  Apps";
+  display-run: "  Run";
+  display-window: "󰖲  Windows";
+  display-combi: "󰍉";
+  combi-hide-mode-prefix: true;
+  matching: "fuzzy";
+  sort: true;
+  sorting-method: "fzf";
+  case-sensitive: false;
+  hover-select: true;
+  me-select-entry: "";
+  me-accept-entry: "MousePrimary";
+  /* rofi waits only 1.5 s for D-Bus activation, then also runs Exec: slow cold starts opened two windows */
+  drun { DBusActivatable: false; }
+}
+@theme "~/.config/rofi/graphite.rasi"

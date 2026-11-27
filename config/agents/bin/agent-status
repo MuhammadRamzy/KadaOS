@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Waybar: running agent sessions (tmux ag-*); hidden when none. Turns orange ("waiting") when an agent
+# is asking you something: an approval prompt on screen, or it rang the terminal bell.
+WAIT_RE='Do you want to|Allow (this|command|execution)|Approve|\(y/n\)|\[Y/n\]|\[y/N\]|Press Enter to|Waiting for (your|user) (input|approval)|❯ 1\. Yes'
+sessions=$(tmux ls -F '#S' 2>/dev/null | grep '^ag-')
+[ -z "$sessions" ] && { echo '{"text":"","class":"none"}'; exit 0; }
+n=0; waiting=0; tip=""
+while read -r s; do
+  n=$((n + 1)); state=""
+  bell=$(tmux list-windows -t "$s" -F '#{window_bell_flag}' 2>/dev/null | grep -c 1)
+  if [ "${bell:-0}" -gt 0 ] || tmux list-panes -t "$s" -F '#{pane_id}' 2>/dev/null | while read -r p; do
+       tmux capture-pane -p -t "$p" -S -15 2>/dev/null; done | grep -Eq "$WAIT_RE"; then
+    waiting=$((waiting + 1)); state="  ← needs you"
+  fi
+  tip+="${s#ag-}: $(tmux list-windows -t "$s" -F '#W' | paste -sd, -)${state}\\n"
+done <<< "$sessions"
+tip=${tip//\"/\\\"}
+if [ "$waiting" -gt 0 ]; then
+  printf '{"text":"%s %s waiting","class":"waiting","tooltip":"Agents waiting for you\\n%sClick: agents menu (Super+K)"}\n' $'\U000F0026' "$waiting" "$tip"
+else
+  printf '{"text":"%s %s","class":"on","tooltip":"Agent sessions\\n%sClick: agents menu (Super+K)"}\n' $'\U000F0674' "$n" "$tip"
+fi

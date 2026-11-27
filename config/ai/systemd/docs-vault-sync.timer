@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh the Obsidian vault hourly
+
+[Timer]
+OnStartupSec=2min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

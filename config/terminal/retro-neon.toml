@@ -1,0 +1,23 @@
+# Two-line prompt: context above, typing on a clean line below.
+add_newline = false
+format = "[╭─](bold bright-magenta) $directory$git_branch$git_status$cmd_duration$line_break[╰─](bold bright-magenta)$character"
+
+[directory]
+format = "[$path]($style)"
+style = "bold bright-cyan"
+truncation_length = 3
+truncate_to_repo = false
+
+[git_branch]
+format = " [git:$branch](bold bright-magenta)"
+
+[git_status]
+format = " [$all_status$ahead_behind](bright-yellow)"
+
+[cmd_duration]
+min_time = 1500
+format = " [${duration}](dimmed bright-cyan)"
+
+[character]
+success_symbol = "[❯](bold bright-green) "
+error_symbol = "[❯](bold bright-red) "

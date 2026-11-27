@@ -1,0 +1,17 @@
+name: Something's off
+description: A script, panel or feature that doesn't work as described
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes: {label: What happened, description: "What you did, what you expected, what you got (error text helps)."}
+    validations: {required: true}
+  - type: input
+    id: order
+    attributes: {label: What you installed, placeholder: "e.g. --order chaya-kadi, or --items desktop,ai"}
+  - type: input
+    id: machine
+    attributes: {label: Machine and Ubuntu version, placeholder: "e.g. ThinkPad T14 (AMD), Ubuntu 26.04"}
+  - type: textarea
+    id: log
+    attributes: {label: Relevant lines from setup.log or desktop-check, render: text}

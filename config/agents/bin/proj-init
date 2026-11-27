@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# proj-init [dir] — make a repo "multi-agent ready": AGENTS.md (+ CLAUDE.md / GEMINI.md pointing to it),
+# docs/STATUS.md, docs/HANDOFF.md, docs/decisions/, docs/reviews/. Never overwrites existing files.
+set -euo pipefail
+d=$(realpath "${1:-.}"); cd "$d"; name=$(basename "$d")
+[ -d .git ] || { git init -q; echo "git init"; }
+mk(){ [ -e "$1" ] && echo "keep   $1" || { mkdir -p "$(dirname "$1")"; cat > "$1"; echo "create $1"; }; }
+# detect common commands
+test_cmd=""; lint_cmd=""; build_cmd=""
+if [ -f package.json ]; then pm=npm; [ -f pnpm-lock.yaml ] && pm=pnpm; [ -f bun.lockb ] && pm=bun
+  jq -e '.scripts.test' package.json >/dev/null 2>&1 && test_cmd="$pm test"
+  jq -e '.scripts.lint' package.json >/dev/null 2>&1 && lint_cmd="$pm run lint"
+  jq -e '.scripts.build' package.json >/dev/null 2>&1 && build_cmd="$pm run build"; fi
+[ -f pyproject.toml ] && { test_cmd=${test_cmd:-"uv run pytest"}; lint_cmd=${lint_cmd:-"uv run ruff check ."}; }
+[ -f Cargo.toml ] && { test_cmd=${test_cmd:-"cargo test"}; lint_cmd=${lint_cmd:-"cargo clippy"}; build_cmd=${build_cmd:-"cargo build"}; }
+[ -f go.mod ] && { test_cmd=${test_cmd:-"go test ./..."}; lint_cmd=${lint_cmd:-"go vet ./..."}; build_cmd=${build_cmd:-"go build ./..."}; }
+[ -f pubspec.yaml ] && { test_cmd=${test_cmd:-"flutter test"}; lint_cmd=${lint_cmd:-"flutter analyze"}; }
+mk AGENTS.md <<EOT
+# $name — agent instructions
+Shared by every agent: Claude Code reads this through CLAUDE.md, Antigravity through GEMINI.md, and Codex reads it directly.
+Global rules: ~/.codex/AGENTS.md (same file as ~/.claude/CLAUDE.md).
+
+## What this project is
+<!-- one paragraph: purpose, users, main stack -->
+
+## Commands
+- Build: \`${build_cmd:-TODO}\`
+- Test:  \`${test_cmd:-TODO}\`
+- Lint:  \`${lint_cmd:-TODO}\`
+
+## Layout
+<!-- key folders and what lives where -->
+
+## Conventions
+<!-- style, patterns to follow, things to never touch -->
+
+## Coordination
+Read docs/STATUS.md and docs/HANDOFF.md first. Update docs/HANDOFF.md before you stop.
+Decisions go in docs/decisions/, and reviews from \`agent-review\` in docs/reviews/.
+EOT
+mk CLAUDE.md <<'EOT'
+@AGENTS.md
+EOT
+[ -e GEMINI.md ] && echo "keep   GEMINI.md" || { ln -s AGENTS.md GEMINI.md; echo "create GEMINI.md -> AGENTS.md"; }
+mk docs/STATUS.md <<EOT
+# Status
+- [ ] 
+EOT
+mk docs/HANDOFF.md <<'EOT'
+# Handoff log (newest first)
+<!-- ## YYYY-MM-DD · agent-name
+- did: …
+- in progress: …
+- next: … -->
+EOT
+mkdir -p docs/decisions docs/reviews; touch docs/decisions/.gitkeep docs/reviews/.gitkeep
+[ -f .gitignore ] || printf '.env\n.env.*\n!.env.example\nnode_modules/\n.venv/\n__pycache__/\ndist/\nbuild/\n' > .gitignore
+[ -x ~/KadaOS/scripts/vault-sync.sh ] && bash ~/KadaOS/scripts/vault-sync.sh >/dev/null 2>&1   # show it in Obsidian
+echo "✔ $name is multi-agent ready. Open it: agent $d"

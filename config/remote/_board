@@ -1,0 +1,34 @@
+#compdef board
+# zsh completion for board (installed by scripts/install-remote.sh)
+_board_devices() { local -a d; d=(${(f)"$(board json names 2>/dev/null)"}); _describe -t devices 'device' d }
+_board() {
+  local -a cmds
+  cmds=(
+    'add:add or update a device' 'ls:devices and their status' 'info:details of a device' 'doctor:what is wrong and the fix'
+    'ssh:terminal on the device (tmux)' 'mosh:terminal over mosh' 'code:VS Code on the device' 'files:open in Files'
+    'mount:mount at ~/Remote' 'umount:unmount' 'push:copy files to the device' 'pull:copy files from the device'
+    'sync:mirror a folder on every save' 'run:run a command (NAME or @tag)' 'ports:open device ports here'
+    'share:let the device reach a laptop port' 'logs:follow logs (--why explains)' 'top:processes'
+    'reboot:reboot and wait' 'poweroff:power off' 'wake:wake-on-LAN' 'forget:forget host key' 'serial:serial console'
+    'serial-log:latest serial log' 'scan:find devices' 'usb:one-USB-cable mode' 'link:direct Ethernet' 'hotspot:laptop hotspot'
+    'flash:prepare an SD card' 'bootstrap:set up a fresh device' 'backup:image the SD card' 'ferry:carry packages offline'
+    'gui:device GUI app here' 'cam:live camera' 'init-project:VS Code tasks for this project' 'copy-id:install your key'
+    'set:change fields' 'edit:edit devices.toml' 'rm:remove a device' 'setup:once per laptop' 'gen:regenerate config'
+    'job:long command that keeps running; notifies when done' 'watch:alerts for devices and new network devices'
+    'json:machine-readable output' 'help:every command')
+  if (( CURRENT == 2 )); then _describe -t commands 'board command' cmds; return; fi
+  case $words[2] in
+    usb) (( CURRENT == 3 )) && _values 'action' setup status enable disable || _board_devices ;;
+    link|hotspot) _values 'action' on off status ;;
+    job) if (( CURRENT == 3 )); then _alternative 'actions:action:(ls log kill forget)' 'devices:device:_board_devices';
+         elif [[ $words[3] == (log|kill|forget) ]]; then _values 'job' ${(f)"$(board json jobs 2>/dev/null)"}; else _normal; fi ;;
+    watch) (( CURRENT == 3 )) && _values 'action' status on off || _board_devices ;;
+    json) _values 'what' names devices status serial scan net links tunnels mounts jobs ;;
+    run|x) if (( CURRENT == 3 )); then _alternative 'devices:device:_board_devices' "tags:tag:(@all ${(f)"$(board json devices 2>/dev/null | python3 -c 'import json,sys;print("\n".join({"@"+t for d in json.load(sys.stdin).values() for t in d.get("tags",[])}))' 2>/dev/null)"})"; else _normal; fi ;;
+    push|sync|init-project|init) (( CURRENT == 3 )) && _board_devices || _files ;;
+    serial|console) _alternative 'devices:device:_board_devices' 'ports:port:_files -W /dev/serial/by-id' ;;
+    scan|setup|help|gen|edit|serial-log|ls|list) ;;
+    *) (( CURRENT == 3 )) && _board_devices ;;
+  esac
+}
+_board "$@"

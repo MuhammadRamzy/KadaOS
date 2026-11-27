@@ -1,0 +1,15 @@
+[Unit]
+Description=KadaOS USB guard notifier (Allow / Block new USB devices)
+Documentation=file:%h/KadaOS/docs/USB_GUARD.md
+After=graphical-session.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/bin/python3 %h/.local/share/myos/usbguard.py watch
+Restart=always
+RestartSec=10
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=graphical-session.target

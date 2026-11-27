@@ -1,0 +1,336 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 32,
+  "spacing": 0,
+  "reload_style_on_change": true,
+  "modules-left": [
+    "custom/launcher",
+    "hyprland/workspaces",
+    "hyprland/window"
+  ],
+  "modules-center": [
+    "group/live"
+  ],
+  "modules-right": [
+    "custom/system",
+    "custom/lockkeys",
+    "custom/privacy",
+    "group/more",
+    "custom/ai",
+    "network",
+    "bluetooth",
+    "custom/phone",
+    "pulseaudio",
+    "battery",
+    "custom/inbox",
+    "custom/notifications",
+    "custom/clock"
+  ],
+  "group/live": {
+    "orientation": "inherit",
+    "modules": [
+      "custom/recording",
+      "custom/attention",
+      "custom/dictate",
+      "custom/next",
+      "mpris",
+      "custom/agents"
+    ]
+  },
+  "custom/recording": {
+    "exec": "~/.config/hypr/scripts/record.sh bar",
+    "return-type": "json",
+    "on-click": "~/.config/hypr/scripts/record.sh stop"
+  },
+  "custom/attention": {
+    "exec": "~/.config/hypr/scripts/bar-status.py attention",
+    "return-type": "json",
+    "restart-interval": 5,
+    "on-click": "~/.config/hypr/scripts/bar-status.py goto"
+  },
+  "group/more": {
+    "orientation": "inherit",
+    "drawer": {
+      "transition-duration": 220,
+      "children-class": "more-child",
+      "transition-left-to-right": false
+    },
+    "modules": [
+      "custom/more",
+      "tray",
+      "idle_inhibitor",
+      "custom/power-profile",
+      "cpu",
+      "memory",
+      "temperature"
+    ]
+  },
+  "custom/inbox": {
+    "exec": "~/.local/share/local-ai/secretary.py bar",
+    "return-type": "json",
+    "interval": 30,
+    "signal": 13,
+    "on-click": "~/.local/bin/myos-panel inbox"
+  },
+  "custom/phone": {
+    "exec": "~/.local/bin/phone _bar",
+    "return-type": "json",
+    "interval": 30,
+    "signal": 14,
+    "on-click": "~/.local/bin/myos-panel phone"
+  },
+  "custom/more": {
+    "format": "󰅁",
+    "tooltip-format": "More: tray, keep awake, power mode, CPU, memory"
+  },
+  "custom/system": {
+    "exec": "~/.config/hypr/scripts/bar-status.py system",
+    "return-type": "json",
+    "interval": 10,
+    "on-click": "kitty --class kitty-scratch -e btop"
+  },
+  "custom/privacy": {
+    "exec": "~/.config/hypr/scripts/bar-status.py privacy",
+    "return-type": "json",
+    "interval": 5
+  },
+  "custom/next": {
+    "exec": "~/.config/hypr/scripts/bar-status.py next",
+    "return-type": "json",
+    "interval": 60,
+    "on-click": "~/.local/bin/myos-panel calendar"
+  },
+  "custom/launcher": {
+    "format": " ",
+    "tooltip-format": "Apps  (Super+Space)\nRight-click: Settings  (Super+I)",
+    "on-click": "~/.config/hypr/scripts/launcher.sh",
+    "on-click-right": "~/.config/hypr/scripts/settings.sh"
+  },
+  "hyprland/workspaces": {
+    "format": "",
+    "on-click": "activate",
+    "persistent-workspaces": {
+      "*": 5
+    },
+    "on-scroll-up": "hyprctl dispatch workspace e-1",
+    "on-scroll-down": "hyprctl dispatch workspace e+1"
+  },
+  "hyprland/window": {
+    "format": "{title}",
+    "max-length": 48,
+    "separate-outputs": true,
+    "rewrite": {
+      "(.*) — Mozilla Firefox": "$1",
+      "(.*) - Google Chrome": "$1"
+    }
+  },
+  "custom/clock": {
+    "exec": "~/.config/hypr/scripts/bar-clock.sh",
+    "return-type": "json",
+    "restart-interval": 3,
+    "on-click": "~/.local/bin/myos-panel calendar",
+    "on-click-right": "~/.config/hypr/scripts/bar-clock.sh toggle"
+  },
+  "mpris": {
+    "format": "󰝚  {title}",
+    "format-paused": "󰏤  {title}",
+    "max-length": 40,
+    "tooltip-format": "{title}\n{artist}  ·  {player}\nClick: play/pause · Scroll: next/previous",
+    "on-click": "playerctl play-pause",
+    "on-scroll-up": "playerctl next",
+    "on-scroll-down": "playerctl previous"
+  },
+  "custom/lockkeys": {
+    "exec": "~/.config/hypr/scripts/lockstate.sh",
+    "return-type": "json",
+    "interval": 20,
+    "signal": 8
+  },
+  "custom/dictate": {
+    "exec": "~/.local/bin/ai-dictate status",
+    "return-type": "json",
+    "interval": 15,
+    "signal": 10,
+    "on-click": "~/.local/bin/ai-dictate stop"
+  },
+  "custom/agents": {
+    "exec": "~/.local/bin/agent-status",
+    "return-type": "json",
+    "interval": 4,
+    "signal": 12,
+    "on-click": "~/.local/bin/agent-menu"
+  },
+  "custom/ai": {
+    "exec": "~/.local/bin/ai-status",
+    "return-type": "json",
+    "interval": 15,
+    "signal": 11,
+    "on-click": "~/.local/bin/ai-menu --ask",
+    "on-click-right": "~/.local/bin/ai-status unload"
+  },
+  "custom/help": {
+    "format": "󰘥",
+    "tooltip-format": "Shortcuts  (Super+/)\nRight-click: beginner guide",
+    "on-click": "~/.config/hypr/scripts/keyhelp.sh",
+    "on-click-right": "kitty --class kitty-scratch -e sh -c 'glow -p ~/KadaOS/docs/HYPRLAND_GUIDE.md'"
+  },
+  "custom/screenshot": {
+    "format": "󰄀",
+    "tooltip-format": "Screenshot menu  (Print)\nRight-click: area  (Super+Shift+S)",
+    "on-click": "~/.config/hypr/scripts/screenshot.sh menu",
+    "on-click-right": "~/.config/hypr/scripts/screenshot.sh area"
+  },
+  "custom/clipboard": {
+    "format": "󰅇",
+    "tooltip-format": "Clipboard history  (Super+V)\nRight-click: wipe history",
+    "on-click": "~/.local/bin/myos-panel clipboard",
+    "on-click-right": "~/.config/hypr/scripts/clipboard.sh wipe"
+  },
+  "idle_inhibitor": {
+    "format": "{icon}",
+    "format-icons": {
+      "activated": "󰅶",
+      "deactivated": "󰛊"
+    },
+    "tooltip-format-activated": "Keep awake: ON",
+    "tooltip-format-deactivated": "Keep awake: off (auto-lock active)"
+  },
+  "custom/nightlight": {
+    "exec": "~/.config/hypr/scripts/nightlight.sh status",
+    "return-type": "json",
+    "interval": 5,
+    "on-click": "~/.config/hypr/scripts/nightlight.sh"
+  },
+  "custom/tablet": {
+    "exec": "~/.config/hypr/scripts/tablet-control.py json",
+    "return-type": "json",
+    "interval": 5,
+    "on-click": "~/.config/hypr/scripts/tablet-control.py toggle",
+    "on-click-right": "~/.config/hypr/scripts/tablet-display.sh toggle"
+  },
+  "custom/power-profile": {
+    "exec": "~/.config/hypr/scripts/power-profile.sh",
+    "return-type": "json",
+    "interval": 60,
+    "signal": 9,
+    "on-click": "~/.config/hypr/scripts/power-profile.sh cycle"
+  },
+  "group/hw": {
+    "orientation": "inherit",
+    "modules": [
+      "cpu",
+      "memory",
+      "temperature"
+    ]
+  },
+  "cpu": {
+    "format": "󰻠 {usage}%",
+    "interval": 3,
+    "tooltip-format": "CPU {usage}% · click for system monitor",
+    "on-click": "kitty --class kitty-scratch -e btop"
+  },
+  "memory": {
+    "format": "󰍛 {percentage}%",
+    "tooltip-format": "{used:0.1f} / {total:0.1f} GiB",
+    "on-click": "kitty --class kitty-scratch -e btop"
+  },
+  "temperature": {
+    "format": "󰔏 {temperatureC}°",
+    "critical-threshold": 90,
+    "interval": 5,
+    "tooltip": false
+  },
+  "backlight": {
+    "format": "{icon} {percent}%",
+    "format-icons": [
+      "󰃞",
+      "󰃟",
+      "󰃠"
+    ],
+    "tooltip-format": "Brightness — scroll to change",
+    "on-scroll-up": "~/.config/hypr/scripts/osd.sh bright-up",
+    "on-scroll-down": "~/.config/hypr/scripts/osd.sh bright-down"
+  },
+  "pulseaudio": {
+    "format": "{icon}",
+    "format-muted": "󰝟",
+    "tooltip-format": "{desc}  ·  {volume}%\nClick: sound settings · Right-click: mute · Scroll: volume",
+    "format-icons": {
+      "default": [
+        "󰕿",
+        "󰖀",
+        "󰕾"
+      ],
+      "headphone": "󰋋"
+    },
+    "on-click": "~/.config/hypr/scripts/settings.sh sound",
+    "on-click-right": "~/.config/hypr/scripts/osd.sh mute",
+    "on-click-middle": "pavucontrol",
+    "on-scroll-up": "~/.config/hypr/scripts/osd.sh vol-up",
+    "on-scroll-down": "~/.config/hypr/scripts/osd.sh vol-down"
+  },
+  "network": {
+    "format-wifi": "󰖩",
+    "format-ethernet": "󰈀",
+    "format-disconnected": "󰖪",
+    "tooltip-format-wifi": "{essid}  {signalStrength}%\n{ipaddr}",
+    "tooltip-format-ethernet": "{ifname} {ipaddr}",
+    "on-click": "~/.local/bin/myos-panel wifi",
+    "on-click-right": "~/.config/hypr/scripts/settings.sh wifi"
+  },
+  "bluetooth": {
+    "format": "",
+    "format-connected": "󰂱",
+    "format-off": "",
+    "format-disabled": "",
+    "tooltip-format-connected": "{device_enumerate}",
+    "tooltip-format-enumerate-connected": "{device_alias}",
+    "on-click": "~/.local/bin/myos-panel bluetooth"
+  },
+  "battery": {
+    "states": {
+      "warning": 25,
+      "critical": 12
+    },
+    "format": "{icon} {capacity}%",
+    "format-charging": "󰂄 {capacity}%",
+    "format-plugged": "󰂄 {capacity}%",
+    "format-icons": [
+      "󰁺",
+      "󰁼",
+      "󰁾",
+      "󰂀",
+      "󰁹"
+    ],
+    "tooltip-format": "{timeTo}  ·  {power:.1f} W\nClick: battery health · right-click: power settings",
+    "on-click": "~/.local/bin/myos-panel battery",
+    "on-click-right": "~/.config/hypr/scripts/settings.sh power"
+  },
+  "tray": {
+    "icon-size": 16,
+    "spacing": 10
+  },
+  "custom/notifications": {
+    "exec": "swaync-client -swb",
+    "return-type": "json",
+    "format": "{icon}",
+    "escape": true,
+    "format-icons": {
+      "notification": "󰂞",
+      "none": "󰂚",
+      "dnd-notification": "󰂛",
+      "dnd-none": "󰂛",
+      "inhibited-notification": "󰂞",
+      "inhibited-none": "󰂚"
+    },
+    "tooltip-format": "Notifications  (Super+N)\nRight-click: do not disturb",
+    "on-click": "swaync-client -t -sw",
+    "on-click-right": "swaync-client -d -sw"
+  },
+  "custom/power": {
+    "format": "󰐥",
+    "tooltip-format": "Power menu  (Super+Shift+E)",
+    "on-click": "~/.config/hypr/scripts/power-menu.sh"
+  }
+}

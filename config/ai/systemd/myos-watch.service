@@ -1,0 +1,6 @@
+[Unit]
+Description=Assistant watchers (disk, services, battery, heat) and the daily briefing
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/.local/share/local-ai/watch.py

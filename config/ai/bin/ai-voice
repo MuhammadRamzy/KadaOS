@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Super+Shift+D: ask one spoken question; press again to cancel recording.
+set -u
+R=${XDG_RUNTIME_DIR:-/tmp}; pidf="$R/voice-ask.pid"
+if [ "${1:-}" = worker ]; then
+  python3 "$HOME/.local/share/local-ai/voice-ask.py" & child=$!
+  printf '%s\n' "$child" > "$pidf"
+  wait "$child"
+  [ "$(cat "$pidf" 2>/dev/null)" = "$child" ] && rm -f -- "$pidf"
+  sleep 120
+  ~/.local/bin/ai-dictate expire
+  exit 0
+fi
+exec 9>"$R/dictate-control.lock"
+flock -w 10 9 || exit 1
+if [ -s "$pidf" ] && kill -0 "$(cat "$pidf")" 2>/dev/null; then
+  kill -TERM "$(cat "$pidf")"; exit 0
+fi
+rm -f -- "$pidf"
+if ~/.local/bin/ai-dictate status | grep -q '"class":"rec"'; then
+  notify-send "Voice question" "Stop dictation first with Super+D"; exit 1
+fi
+systemctl --user start whisper-server || { notify-send "Voice question" "Speech engine failed to start"; exit 1; }
+ready=false
+for _ in $(seq 1 300); do
+  if curl -s -o /dev/null --max-time 1 127.0.0.1:8178; then ready=true; break; fi
+  sleep 0.2
+done
+[ "$ready" = true ] || { notify-send "Voice question" "Speech engine did not become ready"; exit 1; }
+setsid -f "$0" worker >/dev/null 2>&1 9>&-
+for _ in $(seq 1 50); do [ -s "$pidf" ] && break; sleep 0.1; done

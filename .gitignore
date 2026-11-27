@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+setup.log
+devices.toml
+# written on your machine by scripts/postflight.sh
+docs/HEALTH_REPORT.md
+docs/INSTALL_MANIFEST.md

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Files → Scripts → "Open on device in VS Code" (board, docs/REMOTE.md)
+exec board _nautilus code

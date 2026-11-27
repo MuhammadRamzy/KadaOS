@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# agent-menu (Super+K) — pick a project, then an agent. Running sessions are listed first.
+set -u
+M=~/.config/hypr/scripts/menu.sh
+pkill -x rofi && exit 0
+ic(){ printf '%b' "$1"; }
+running=$(tmux ls -F '#S' 2>/dev/null | grep '^ag-' | sed 's/^ag-//')
+projects=$( { for r in ~/Projects ~/Workspaces; do find "$r" -mindepth 1 -maxdepth 2 -name .git -printf '%h\n' 2>/dev/null; done
+              echo ~/KadaOS
+              command -v zoxide >/dev/null && zoxide query -l 2>/dev/null | head -40 | while read -r z; do [ -d "$z/.git" ] && echo "$z"; done
+            } | awk '!seen[$0]++' | sed "s#^$HOME#~#")
+# Rich items for myos-pick: "label<TAB>icon<TAB>subtitle" (label is the path we act on)
+list=$( { for s in $running; do p=$(tmux display -p -t "ag-$s" '#{pane_current_path}' 2>/dev/null | sed "s#^$HOME#~#")
+            printf '%s\tfolder-open-symbolic\trunning · %s\n' "$p" "$(tmux list-windows -t "ag-$s" -F '#W' | paste -sd, -)"; done
+          printf '%s\n' "$projects" | while read -r p; do printf '%s\tfolder-symbolic\t\n' "$p"; done
+          printf 'Open another folder…\tfolder-open-symbolic\tpick any path\n'
+          printf 'New project…\tlist-add-symbolic\tcreate in ~/Projects\n'; } | awk -F'\t' '!seen[$1]++')
+pick=$(printf '%s\n' "$list" | $M "Agents" -mesg "Pick a project — running sessions keep working") || exit 0
+case "$pick" in
+  "Open another folder…") dir=$(printf '' | $M "Folder" -l 0 -mesg "Path (e.g. ~/Projects/app)") || exit 0;;
+  "New project…") n=$(printf '' | $M "New project" -l 0 -mesg "Name (created in ~/Projects)") || exit 0
+                   [ -n "$n" ] || exit 0; dir=~/Projects/$n; mkdir -p "$dir" && ~/.local/bin/proj-init "$dir" >/dev/null;;
+  *) dir="$pick";;
+esac
+dir="${dir/#\~/$HOME}"; [ -d "$dir" ] || { notify-send "Agents" "No such folder: $dir"; exit 1; }
+a=$(printf '%s\n' \
+  "Claude Code\ttext-editor-symbolic\tdeep multi-file work, refactors, docs" \
+  "Codex\tutilities-terminal-symbolic\timplement, debug, tests, review" \
+  "Antigravity\tapplications-system-symbolic\tagent IDE, browser & UI work" \
+  "Antigravity CLI\tutilities-terminal-symbolic\tagy in the terminal (persistent)" \
+  "Local AI\temblem-system-symbolic\tprivate, free, offline chat" \
+  "Shell\tutilities-terminal-symbolic\tplain terminal in the project" \
+  "Cross-review\tview-refresh-symbolic\tanother agent reviews the changes" \
+  "Make multi-agent ready\tdocument-new-symbolic\tAGENTS.md, handoff docs" |
+  $M "Agent · $(basename "$dir")" -mesg "$(sed "s#^$HOME#~#" <<<"$dir")") || exit 0
+case "$a" in
+  *Claude*) exec ~/.local/bin/agent "$dir" claude;; *Codex*) exec ~/.local/bin/agent "$dir" codex;;
+  *"Antigravity CLI"*) exec ~/.local/bin/agent "$dir" agy;;
+  *Antigravity*) exec ~/.local/bin/agent "$dir" antigravity;;
+  *Local*) exec ~/.local/bin/agent "$dir" local;; *Shell*) exec ~/.local/bin/agent "$dir" shell;;
+  *review*) by=$(printf 'codex\nclaude\nagy\n' | $M "Reviewer" -mesg "Who reviews the current diff?") || exit 0
+            exec kitty --class fai-answer -e sh -c "cd '$dir' && ~/.local/bin/agent-review --by $by; printf '\n\033[2mEnter to close\033[0m'; read _";;
+  *ready*) out=$(~/.local/bin/proj-init "$dir" 2>&1); notify-send "Multi-agent ready" "$(tail -1 <<<"$out")";;
+esac

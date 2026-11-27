@@ -1,0 +1,14 @@
+{
+  "model": "ornith:9b",
+  "embed_model": "nomic-embed-text",
+  "keep_alive": "5m",
+  "dictate_language": "auto",
+  "search_roots": ["~/Documents", "~/Downloads", "~/Desktop", "~/Projects", "~/Notes", "~/KadaOS/docs", "~/Workspaces"],
+  "adapt": {
+    "ac_profile": "balanced",
+    "battery_profile": "power-saver",
+    "ac_hz": 165,
+    "battery_hz": 60,
+    "dnd_on_fullscreen": true
+  }
+}

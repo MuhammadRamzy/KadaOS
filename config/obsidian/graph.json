@@ -1,0 +1,64 @@
+{
+  "collapse-filter": false,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": true,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "path:Projects/KadaOS",
+      "color": {
+        "a": 1,
+        "rgb": 14727269
+      }
+    },
+    {
+      "query": "path:\"Projects/ros2_lyrical\"",
+      "color": {
+        "a": 1,
+        "rgb": 9425062
+      }
+    },
+    {
+      "query": "path:\"Projects/space_ros\"",
+      "color": {
+        "a": 1,
+        "rgb": 11115481
+      }
+    },
+    {
+      "query": "path:Projects/test",
+      "color": {
+        "a": 1,
+        "rgb": 15311466
+      }
+    },
+    {
+      "query": "path:Inbox OR path:Notes",
+      "color": {
+        "a": 1,
+        "rgb": 9356768
+      }
+    },
+    {
+      "query": "path:Projects",
+      "color": {
+        "a": 1,
+        "rgb": 4357530
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": true,
+  "textFadeMultiplier": -1,
+  "nodeSizeMultiplier": 1.1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": true,
+  "centerStrength": 0.5,
+  "repelStrength": 12,
+  "linkStrength": 1,
+  "linkDistance": 180,
+  "scale": 1
+}

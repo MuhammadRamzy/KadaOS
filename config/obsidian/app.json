@@ -1,0 +1,9 @@
+{
+  "alwaysUpdateLinks": true,
+  "newFileLocation": "folder",
+  "newFileFolderPath": "Inbox",
+  "attachmentFolderPath": "Inbox/attachments",
+  "readableLineLength": true,
+  "showLineNumber": true,
+  "promptDelete": true
+}

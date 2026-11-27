@@ -1,0 +1,12 @@
+# Local SearXNG for the AI chat's web search (localhost only, started on demand).
+# SECRET_KEY_PLACEHOLDER is replaced at install time; the real key never enters git.
+use_default_settings: true
+general:
+  instance_name: "KadaOS search"
+server:
+  secret_key: "SECRET_KEY_PLACEHOLDER"
+  limiter: false
+  image_proxy: false
+search:
+  safe_search: 0
+  formats: [html, json]

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# ai-search — search your files by meaning; open a result or ask AI using the results.
+set -u
+M=~/.config/hypr/scripts/menu.sh
+pkill -x rofi 2>/dev/null || true
+project=""
+if [ "${1:-}" = --project ]; then
+  project=${2:-}; shift 2
+  [ -d "$project" ] || { notify-send "Search" "Project folder not found"; exit 1; }
+fi
+given=""; [ "${1:-}" = --query ] && given=${2:-}
+while :; do
+if [ -n "$given" ]; then
+  q=$given; given=""
+else
+  q=$(printf '' | $M "Search files" -l 0 -mesg "Describe what you're looking for, e.g. “air india ticket” or “docker port config”") || exit 0
+fi
+[ -n "$q" ] || exit 0
+scope=(); [ -n "$project" ] && scope=(--project "$project")
+json=$(fai search -n 12 --json "${scope[@]}" -- "$q" 2>/dev/null) || { notify-send "Search" "Search failed – is Ollama running? (fai status)"; exit 1; }
+json=$(jq '[.[] | select(.score >= 0.5)]' <<<"$json")
+[ "$(jq length <<<"$json")" -gt 0 ] || { notify-send "Search" "No strong match for “$q”. (Indexed: $(fai status | awk '/^index/{print $2}') files — see docs/AI_GUIDE.md to add folders)"; continue; }
+list=$( { printf '%b  Ask the assistant using these files\n' '\U000F0B79'; jq -r --arg h "$HOME" 'to_entries[] | "\(.key + 1). \(.value.path | if startswith($h + "/") then "~" + .[($h | length):] else . end | gsub("[\\r\\n]"; " "))   —   \(.value.snippet[0:90])"' <<<"$json"; } )
+pick=$(printf '%s\n' "$list" | $M "Results" -back -mesg "“$q” · Enter opens the file"); rc=$?
+[ "$rc" = 2 ] && continue          # Back: search again
+[ "$rc" = 0 ] || exit 0
+break
+done
+if [[ $pick == *"Ask the assistant using these files"* ]]; then
+  exec ~/.local/bin/ai-chat --ask "Using my own files${project:+ in $project}, answer: $q"
+fi
+[[ $pick =~ ^([0-9]+)[.] ]] || exit 0
+number=${BASH_REMATCH[1]}
+path=$(jq -r --argjson index "$((number - 1))" '.[$index].path // empty' <<<"$json")
+[ -f "$path" ] && xdg-open "$path" >/dev/null 2>&1 &

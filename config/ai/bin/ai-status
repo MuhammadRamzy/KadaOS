@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Waybar: AI model state.  ai-status [unload]
+if [ "${1:-}" = unload ]; then fai unload >/dev/null 2>&1; notify-send -t 1500 "AI" "Model unloaded — GPU memory freed"; pkill -RTMIN+11 waybar; exit 0; fi
+ps=$(curl -s --max-time 1 127.0.0.1:11434/api/ps) || { printf '{"text":"%s","class":"off","tooltip":"AI server off (systemctl --user start ollama-local)"}\n' $'\U000F06A9'; exit 0; }
+m=$(jq -r '[.models[]? | "\(.name) · \((.size_vram/1073741824*10|floor)/10) GiB VRAM"] | join("\\n")' <<<"$ps")
+if [ -n "$m" ]; then printf '{"text":"%s","class":"loaded","tooltip":"AI loaded on GPU:\\n%s\\nClick: ask AI · Right-click: unload (free GPU)"}\n' $'\U000F06A9' "$m"
+else printf '{"text":"%s","class":"idle","tooltip":"AI ready (loads on first use, ~4 s)\\nClick: ask AI (Super+Z) · Super+Shift+Space: AI on selection"}\n' $'\U000F06A9'; fi

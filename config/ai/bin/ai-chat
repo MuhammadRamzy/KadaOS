@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# The resident AI assistant: a floating orb (bottom-right) that opens the chat panel.
+#   ai-chat              show the panel        ai-chat --toggle      open/close it (orb, Super+Z)
+#   ai-chat --background start with just the orb (not run at login any more)
+# gtk4-layer-shell must be preloaded so the orb can float above windows (chat.py drops it for children).
+lib=/usr/lib/x86_64-linux-gnu/libgtk4-layer-shell.so.0
+[ -e "$lib" ] && export LD_PRELOAD="$lib${LD_PRELOAD:+:$LD_PRELOAD}"
+exec python3 ~/.local/share/local-ai/chat.py "$@"

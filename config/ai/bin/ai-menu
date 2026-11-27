@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# AI anywhere. Choose the source explicitly; answers stay in a floating window.
+#   ai-menu                     act on the current selection / clipboard
+#   ai-menu --ask               free question (no text)
+#   ai-menu --text-file FILE    act on text from a file (used by OCR)
+set -u
+M=~/.config/hypr/scripts/menu.sh
+pkill -x rofi 2>/dev/null || true
+tmp=$(mktemp --suffix=.txt -p "${XDG_RUNTIME_DIR:-/tmp}" fai.XXXX)
+trap 'rm -f -- "$tmp"' EXIT
+target=$(hyprctl activewindow -j 2>/dev/null | jq -r '.address // empty')
+case "${1:-}" in
+  --ask) : > "$tmp"; source=question;;
+  --text-file) cp "$2" "$tmp"; source="screen text";;
+  *) sel=$(timeout 1 wl-paste --primary --no-newline 2>/dev/null)
+     clip=$(timeout 1 wl-paste --no-newline --type text 2>/dev/null)
+     if [ -n "$sel" ] || [ -n "$clip" ]; then
+       pick=$(printf '%s\n' \
+         "Selected text	edit-select-all-symbolic	use the text you highlighted" \
+         "Clipboard text	edit-paste-symbolic	use what's on the clipboard (may be old)" \
+         "Ask without text	chat-message-new-symbolic	just ask a question" |
+         "$M" "Ask AI · choose source") || exit 0
+       case "$pick" in
+         "Selected text") [ -n "$sel" ] || { notify-send "Ask AI" "No selected text"; exit 0; }; printf '%s' "$sel" > "$tmp"; source=selection;;
+         "Clipboard text") [ -n "$clip" ] || { notify-send "Ask AI" "Clipboard has no text"; exit 0; }; printf '%s' "$clip" > "$tmp"; source=clipboard;;
+         *) : > "$tmp"; source=question;;
+       esac
+     else : > "$tmp"; source=question; fi;;
+esac
+chars=$(wc -c < "$tmp")
+if [ "$chars" -eq 0 ]; then
+  q=$(printf '' | "$M" "Ask AI" -l 0 -mesg "Ask anything · /files question · /project question · /file question · /search words · /clipboard question") || exit 0
+  [ -n "$q" ] || exit 0
+  case "$q" in
+    '/files '*) q=${q#'/files '}; action=rag;;
+    '/project '*) q=${q#'/project '}; action=rag
+                  project=$(printf '' | "$M" "Project folder" -l 0 -mesg "Full path of the project to search (must already be indexed)") || exit 0
+                  [ -d "$project" ] || { notify-send "Ask AI" "Project folder not found"; exit 1; }
+                  kitty --class fai-answer -e fai window --action rag --project "$project" --context-label "Project: $project" --question "$q"; exit $?;;
+    '/file '*) q=${q#'/file '}; file=$(printf '' | "$M" "File path" -l 0 -mesg "Full path of the file to ask about") || exit 0
+               [ -f "$file" ] && [ ! -L "$file" ] || { notify-send "Ask AI" "File not found or is a link"; exit 1; }
+               kitty --class fai-answer -e fai window --action ask --text-file "$file" --context-label "File: $file" --question "$q"; exit $?;;
+    '/search '*) q=${q#'/search '}; [ -n "$q" ] && exec ~/.local/bin/ai-search --query "$q"; exit 0;;
+    '/clipboard '*) q=${q#'/clipboard '}; timeout 1 wl-paste --no-newline --type text > "$tmp" 2>/dev/null
+                    [ -s "$tmp" ] || { notify-send "Ask AI" "Clipboard has no text"; exit 1; }
+                    kitty --class fai-answer -e fai window --action ask --text-file "$tmp" --context-label "Clipboard text" --question "$q"; exit $?;;
+    *) action=system;;
+  esac
+  [ -n "$q" ] || exit 0
+  label="Question + laptop facts"; [ "$action" = rag ] && label="Question + indexed files"
+  kitty --class fai-answer -e fai window --action "$action" --context-label "$label" --question "$q"
+  exit $?
+fi
+preview=$(tr '\n' ' ' < "$tmp" | cut -c1-90)
+ic(){ printf '%b' "$1"; }
+choice=$(printf '%s\n' \
+  "$(ic '\U000F06E9')   Explain" "$(ic '\U000F0279')   Summarize" "$(ic '\U000F04C6')   Fix grammar & spelling" \
+  "$(ic '\U000F03EB')   Rewrite (clear & professional)" "$(ic '\U000F0368')   Draft a reply" \
+  "$(ic '\U000F0625')   Ask about it…" "$(ic '\U000F0B79')   Find related files" \
+  "$(ic '\U000F0A07')   Explain error with laptop facts" "$(ic '\U000F0A07')   Troubleshoot on my system" "$(ic '\U000F0674')   Ask Claude about it…" |
+  $M "AI · $source · $chars chars" -mesg "Using $source: “$preview…”") || { rm -f "$tmp"; exit 0; }
+claude=""; q=""
+case "$choice" in
+  *"Explain error"*) a=error; q="Explain this captured error using current laptop facts and relevant setup docs.";;
+  *Explain*) a=explain;; *Summarize*) a=summarize;; *Fix*) a=fix;; *Rewrite*) a=rewrite;; *reply*) a=reply;;
+  *"Find related files"*) exec ~/.local/bin/ai-search --query "$(head -c 300 "$tmp")";;
+  *Troubleshoot*) a=system;;
+  *Claude*) a=ask; claude=--claude; q=$(printf '' | $M "Ask Claude" -l 0 -mesg "Question about the selected text") || exit 0;;
+  *Ask*) a=ask; q=$(printf '' | $M "Question" -l 0 -mesg "Question about the selected text") || exit 0;;
+  *) exit 0;;
+esac
+paste=(); case "$a" in fix|rewrite|reply) [ -n "$target" ] && paste=(--paste-to "$target");; esac
+kitty --class fai-answer -e fai window --action "$a" --text-file "$tmp" --context-label "$source · $chars characters" ${q:+--question "$q"} "${paste[@]}" $claude

@@ -1,0 +1,8 @@
+name: New dish
+description: An idea for KadaOS
+labels: [idea]
+body:
+  - type: textarea
+    id: idea
+    attributes: {label: What you'd like and why, description: "The problem first, then your idea for it."}
+    validations: {required: true}

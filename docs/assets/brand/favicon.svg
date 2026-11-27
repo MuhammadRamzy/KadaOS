@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" role="img" aria-labelledby="title desc">
+  <title id="title">KadaOS</title>
+  <desc id="desc">An awning and command prompt, tuned for sixteen pixels.</desc>
+  <style>:root{color:#17171a}@media(prefers-color-scheme:dark){:root{color:#ffffff}}</style>
+  <path fill="currentColor" d="M3 6 5 3h6l2 3ZM4 8l3 2-3 2v-1l1.5-1L4 9Z"/>
+  <path fill="#5b9cff" d="M8 11h4v1H8Z"/>
+</svg>

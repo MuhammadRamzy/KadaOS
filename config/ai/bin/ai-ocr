@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# ai-ocr [copy|ask] — select a screen area, read its text (English + Malayalam), copy it; "ask" opens the AI menu on it.
+set -u
+set -o pipefail
+command -v tesseract >/dev/null || { notify-send "Text from screen" "Install OCR first: bash ~/KadaOS/scripts/phase10-ai-desktop.sh"; exit 1; }
+g=$(slurp -d -b 1e1e2e66 -c e0b865ff -w 2) || exit 0
+img=$(mktemp --suffix=.png -p "${XDG_RUNTIME_DIR:-/tmp}"); txt=$(mktemp --suffix=.txt -p "${XDG_RUNTIME_DIR:-/tmp}")
+trap 'rm -f -- "$img" "$txt"' EXIT
+grim -g "$g" -s 2 "$img" || { notify-send "Text from screen" "Screen capture failed"; exit 1; }                              # 2x scale improves OCR accuracy
+langs=eng; tesseract --list-langs 2>/dev/null | grep -x mal >/dev/null && langs=eng+mal
+tesseract "$img" - -l "$langs" --psm 6 2>/dev/null | sed -e 's/[[:space:]]*$//' | cat -s > "$txt" || { notify-send "Text from screen" "OCR failed"; exit 1; }
+rm -f "$img"
+if [ ! -s "$txt" ] || [ -z "$(tr -d '[:space:]' < "$txt")" ]; then notify-send "Text from screen" "No text found in that area"; exit 0; fi
+wl-copy < "$txt"
+if [ "${1:-copy}" = ask ]; then ~/.local/bin/ai-menu --text-file "$txt"; exit $?; fi
+notify-send -h string:x-canonical-private-synchronous:ocr "Text copied ($(wc -w < "$txt") words)" "$(head -c 180 "$txt")"

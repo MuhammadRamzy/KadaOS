@@ -1,0 +1,21 @@
+[Unit]
+Description=KadaOS intelligent hydration reminders
+Documentation=file:%h/KadaOS/docs/HYDRATION.md
+ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland
+StartLimitIntervalSec=120
+StartLimitBurst=4
+
+[Service]
+Type=dbus
+BusName=org.myos.Hydration
+ExecStart=/usr/bin/python3 %h/.local/share/myos/hydration.py daemon
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=5
+UMask=0077
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+KillMode=control-group
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Whisper speech-to-text server on the RTX 5050 (KadaOS live dictation)
+
+[Service]
+# Vulkan device 1 = NVIDIA (0 is the Intel iGPU)
+Environment=GGML_VK_VISIBLE_DEVICES=1
+WorkingDirectory=%h/.local/share/local-ai/whisper
+ExecStart=/usr/bin/whisper-server -m ggml-large-v3-turbo-q5_0.bin -l auto --host 127.0.0.1 --port 8178 -nt -sns --vad -vm ggml-silero-v5.1.2.bin
+Restart=on-failure

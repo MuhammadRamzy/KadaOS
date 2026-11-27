@@ -1,0 +1,6 @@
+[Unit]
+Description=Refresh the Obsidian vault (~/DocsVault) from project docs
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash %h/KadaOS/scripts/vault-sync.sh

@@ -1,0 +1,16 @@
+[Unit]
+Description=Ollama (user) — local AI for KadaOS
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/ollama serve
+Environment=OLLAMA_HOST=127.0.0.1:11434
+# unload the model from the GPU after 5 idle minutes (frees VRAM / battery)
+Environment=OLLAMA_KEEP_ALIVE=5m
+Environment=OLLAMA_FLASH_ATTENTION=1
+Environment=OLLAMA_KV_CACHE_TYPE=q8_0
+Restart=on-failure
+Nice=5
+
+[Install]
+WantedBy=default.target

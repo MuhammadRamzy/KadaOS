@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=AI Chat
+GenericName=Assistant
+Comment=Chat with the local AI, with files and web sources
+Exec=%h/.local/bin/ai-chat
+Icon=chat-message-new-symbolic
+Terminal=false
+Categories=Utility;
+Keywords=ai;assistant;chat;ask;llm;
+StartupNotify=true

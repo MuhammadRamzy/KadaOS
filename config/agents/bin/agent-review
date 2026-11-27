@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# agent-review [--by codex|claude|agy] [--base REF]
+# A *different* agent reviews the current changes (working tree vs HEAD, or REF...HEAD; if clean: the last commit).
+# Read-only: the reviewer cannot edit files. Saved to docs/reviews/<date>-<reviewer>.md.
+set -euo pipefail
+by=codex; base=""
+while [ $# -gt 0 ]; do case "$1" in --by) by=$2; shift 2;; --base) base=$2; shift 2;; *) echo "usage: agent-review [--by codex|claude|agy] [--base REF]"; exit 1;; esac; done
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "not a git repo"; exit 1; }
+root=$(git rev-parse --show-toplevel); cd "$root"
+if [ -n "$base" ]; then diff=$(git diff "$base"...HEAD; git diff HEAD); what="changes since $base"
+elif [ -n "$(git status --porcelain)" ]; then diff=$(git diff HEAD; git ls-files --others --exclude-standard | head -20 | while read -r f; do echo "=== new file: $f"; head -200 "$f"; done); what="uncommitted changes"
+else diff=$(git show --stat --patch HEAD); what="last commit $(git log -1 --format='%h %s')"; fi
+[ -n "$diff" ] || { echo "nothing to review"; exit 0; }
+lines=$(wc -l <<<"$diff"); [ "$lines" -gt 3000 ] && diff=$(head -3000 <<<"$diff")$'\n… (diff truncated)'
+prompt="You are reviewing $what in the repo $(basename "$root"). Another AI agent wrote them.
+Read AGENTS.md / docs/HANDOFF.md if present for context; you may read files, but do NOT modify anything.
+Report as markdown:
+## Verdict (ship / fix first)
+## Issues: numbered, each with severity (high/med/low), file:line, what is wrong, suggested fix
+## Missing tests or checks
+## Nits (optional, max 5)
+Be concrete; no generic advice. If it looks good, say so briefly.
+
+DIFF:
+$diff"
+mkdir -p docs/reviews; out="docs/reviews/$(date +%Y-%m-%d-%H%M)-$by.md"
+echo -e "\033[38;2;224;184;101m● $by is reviewing $what ($lines lines)…\033[0m"
+case $by in
+  codex)  codex exec -s read-only --skip-git-repo-check -o "$out.tmp" - <<<"$prompt" >/dev/null 2>&1 || true
+          [ -s "$out.tmp" ] && mv "$out.tmp" "$out";;
+  claude) claude -p --allowedTools "Read,Grep,Glob" <<<"$prompt" > "$out" 2>/dev/null || true;;
+  agy)    # headless agy can't ask for tool permissions (they get auto-denied → no output): review from the diff only
+          agy -p "Do NOT use any tools or run commands; review ONLY from the diff included below.
+$prompt" </dev/null > "$out" 2>/dev/null || true;;
+  *) echo "unknown reviewer $by"; exit 1;;
+esac
+[ -s "$out" ] || { echo "review failed (is $by logged in?)"; rm -f "$out"; exit 1; }
+sed -i "1i # Review by $by · $what · $(date '+%Y-%m-%d %H:%M')\n" "$out"
+command -v bat >/dev/null && bat --paging=never -l md "$out" || cat "$out"
+echo -e "\n\033[2mSaved: $out\033[0m"

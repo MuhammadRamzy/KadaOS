@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Files → Scripts → "Device terminal here" (board, docs/REMOTE.md)
+exec board _nautilus terminal

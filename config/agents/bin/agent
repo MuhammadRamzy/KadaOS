@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# agent — run coding agents per project in persistent tmux sessions (they keep running while you switch away).
+#   agent [DIR] [claude|codex|agy|local|shell|antigravity]   open/attach (default: current dir, claude)
+#   agent ls                                                   list agent sessions and their windows
+#   agent kill [DIR]                                           end that project's session
+set -euo pipefail
+# readable name + hash of the full path: two different .../app folders must never share a session
+slug(){ printf '%s-%s' "$(basename "$1" | sed 's/[^A-Za-z0-9_-]/-/g')" "$(printf '%s' "$1" | sha1sum | cut -c1-6)"; }
+cmd_for(){ case "$1" in
+  claude) echo "claude";; codex) echo "codex";; agy) echo "agy";;
+  local)  echo "fai-chat";; shell) echo "zsh";; *) return 1;; esac; }
+case "${1:-}" in
+  ls) tmux ls -F '#S' 2>/dev/null | grep '^ag-' | while read -r s; do
+        printf '%s  (%s)\n' "${s#ag-}" "$(tmux display -p -t "$s" '#{pane_current_path}' 2>/dev/null | sed "s#$HOME#~#")"
+        tmux list-windows -t "$s" -F '    #I #W#{?window_active, ◀,}#{?window_bell_flag, 🔔,}' ; done; exit 0;;
+  kill) d=$(realpath "${2:-.}"); tmux kill-session -t "ag-$(slug "$d")" && echo "ended ag-$(slug "$d")"; exit 0;;
+esac
+d=$(realpath "${1:-.}"); a="${2:-claude}"
+[ -d "$d" ] || { echo "no such dir: $d"; exit 1; }
+if [ "$a" = antigravity ]; then
+  command -v antigravity >/dev/null || { notify-send "Antigravity not installed" "Run: bash ~/KadaOS/scripts/phase11-agents.sh"; exit 1; }
+  setsid -f antigravity "$d" >/dev/null 2>&1; exit 0; fi
+c=$(cmd_for "$a") || { echo "unknown agent: $a"; exit 1; }
+command -v "${c%% *}" >/dev/null || { notify-send "Agent not installed" "$a ($c) is missing"; echo "$a not installed"; exit 1; }
+s="ag-$(slug "$d")"
+if ! tmux has-session -t "$s" 2>/dev/null; then
+  tmux new-session -d -s "$s" -c "$d" -n "$a" "$c; exec zsh"
+elif ! tmux list-windows -t "$s" -F '#W' | grep -qx "$a"; then
+  tmux new-window -t "$s" -c "$d" -n "$a" "$c; exec zsh"
+fi
+tmux select-window -t "$s:$a"
+if [ -n "${TMUX:-}" ]; then tmux switch-client -t "$s"; exit 0; fi
+# reuse an open terminal for this project if there is one (Hyprland), otherwise open one
+if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+  addr=$(hyprctl clients -j | jq -r --arg t "agents · $(slug "$d") · " '.[] | select(.title | startswith($t)) | .address' | head -1)
+  if [ -n "$addr" ]; then hyprctl dispatch focuswindow "address:$addr" >/dev/null; exit 0; fi
+  setsid -f kitty --class agent-term -e tmux attach -t "$s" >/dev/null 2>&1; exit 0
+fi
+exec tmux attach -t "$s"

@@ -1,0 +1,21 @@
+[Unit]
+Description=Google Drive at ~/GoogleDrive (rclone mount)
+Documentation=https://rclone.org/commands/rclone_mount/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+ExecStartPre=/usr/bin/mkdir -p %h/GoogleDrive
+# Streamed, not synced: files download on open and are cached (bounded); writes upload in the background.
+# A mount is not a backup and not offline access to the whole drive.
+ExecStart=%h/.local/bin/rclone mount gdrive: %h/GoogleDrive \
+  --vfs-cache-mode full --vfs-cache-max-size 10G --vfs-cache-min-free-space 15G --vfs-cache-max-age 72h \
+  --dir-cache-time 5m --poll-interval 1m --volname "Google Drive" --log-level NOTICE
+ExecStop=/usr/bin/fusermount3 -uz %h/GoogleDrive
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

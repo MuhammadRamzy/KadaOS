@@ -1,0 +1,27 @@
+[Desktop Entry]
+Type=Application
+Name=Hydration
+Comment=Context-aware water breaks, logging, and reminder settings
+Exec=myos-hydration panel
+Icon=weather-showers-symbolic
+Terminal=false
+Categories=Utility;
+Keywords=water;drink;hydration;reminder;break;
+StartupNotify=true
+Actions=Drank;Snooze;Pause;Resume;
+
+[Desktop Action Drank]
+Name=Drank water
+Exec=myos-hydration drank
+
+[Desktop Action Snooze]
+Name=Snooze 10 active minutes
+Exec=myos-hydration snooze
+
+[Desktop Action Pause]
+Name=Pause today
+Exec=myos-hydration pause
+
+[Desktop Action Resume]
+Name=Resume reminders
+Exec=myos-hydration resume

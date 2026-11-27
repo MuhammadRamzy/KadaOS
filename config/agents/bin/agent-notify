@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+"""agent-notify AGENT EVENT — keeps track of agent sessions (for the top bar) and tells you, briefly, when one
+finishes or needs you.
+
+  EVENT  Prompt        you sent a prompt: remember which terminal window this agent lives in
+         Stop / agent-turn-complete   it finished its turn
+         Notification  it needs you (permission prompt) or is idle
+Claude Code hooks pass JSON on stdin; Codex `notify` passes JSON as the last argv.
+State: $XDG_RUNTIME_DIR/myos-agents.json (read by ~/.config/hypr/scripts/bar-status.py attention).
+No popup when you are already looking at that agent's window. Summaries come from the local model only when it is
+already loaded (never wakes the GPU for a notification); otherwise the first sentence of the agent's last message."""
+import fcntl, json, os, re, shlex, subprocess, sys, time, urllib.request
+from contextlib import contextmanager
+
+STATE = os.environ.get("MYOS_AGENT_STATE") or os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "myos-agents.json")
+TERMINALS = re.compile(r"ptyxis|kitty|terminal|alacritty|foot|wezterm|ghostty|konsole|tilix", re.I)
+NAMES = {"claude": "Claude", "codex": "Codex", "agy": "Antigravity", "gemini": "Gemini"}
+OLLAMA = "http://127.0.0.1:11434"
+
+
+def sh(*a, timeout=3):
+    try: return subprocess.run(a, capture_output=True, text=True, timeout=timeout).stdout.strip()
+    except Exception: return ""
+
+
+def hypr(what):
+    try: return json.loads(sh("hyprctl", what, "-j") or "null")
+    except ValueError: return None
+
+
+@contextmanager
+def state():
+    """Locked read-modify-write of the shared state file."""
+    with open(STATE + ".lock", "w") as lk:
+        fcntl.flock(lk, fcntl.LOCK_EX)
+        try: d = json.load(open(STATE))
+        except (OSError, ValueError): d = {}
+        yield d
+        tmp = STATE + ".tmp"; json.dump(d, open(tmp, "w")); os.replace(tmp, STATE)
+
+
+def one_line(text, limit=150):
+    """Plain first sentence of a (markdown) message."""
+    t = re.sub(r"```.*?```", " ", str(text), flags=re.S)
+    t = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", t)
+    t = re.sub(r"(?m)^\s*(#+|[-*•]|\d+\.)\s+", "", t)
+    t = re.sub(r"[*_`>|]", "", t)
+    t = " ".join(t.split())
+    m = re.match(r"(.+?[.!?])(\s|$)", t)
+    t = m.group(1) if m and len(m.group(1)) >= 25 else t
+    return t if len(t) <= limit else t[:limit - 1].rsplit(" ", 1)[0] + "…"
+
+
+def ai_summary(text):
+    """One-line summary from the local model if it is already in memory, else None."""
+    if os.environ.get("MYOS_NO_AI"): return None
+    try:
+        loaded = json.load(urllib.request.urlopen(OLLAMA + "/api/ps", timeout=1)).get("models", [])
+        if not loaded: return None
+        body = json.dumps({"model": loaded[0]["name"], "stream": False, "think": False, "options": {"num_predict": 48, "temperature": 0.2},
+                           "prompt": "In at most 14 words, say what this coding agent just did or is asking. No preamble.\n\n" + str(text)[:3000]}).encode()
+        r = json.load(urllib.request.urlopen(urllib.request.Request(OLLAMA + "/api/generate", body, {"Content-Type": "application/json"}), timeout=8))
+        s = one_line(re.sub(r"<think>.*?</think>", "", r.get("response", ""), flags=re.S), 120)
+        return s or None
+    except Exception:
+        return None
+
+
+def window_for(entry, agent, proj, tmux_session):
+    """Hyprland address of the agent's terminal: remembered at prompt time, else matched by title."""
+    clients = hypr("clients") or []
+    addrs = {c["address"]: c for c in clients}
+    if entry.get("address") in addrs: return addrs[entry["address"]]
+    for needle in filter(None, [tmux_session, f"{proj}", agent]):
+        for c in clients:
+            if TERMINALS.search(c.get("class", "")) and needle.lower() in c.get("title", "").lower(): return c
+    return None
+
+
+def main():
+    agent = sys.argv[1] if len(sys.argv) > 1 else "agent"; event = sys.argv[2] if len(sys.argv) > 2 else ""
+    data = {}
+    try:
+        if agent == "codex" and sys.argv[-1].startswith("{"): data = json.loads(sys.argv[-1]); event = data.get("type", event)
+        elif not sys.stdin.isatty(): data = json.loads(sys.stdin.read() or "{}")
+    except Exception: pass
+    cwd = data.get("cwd") or os.getcwd(); proj = os.path.basename(cwd.rstrip("/")) or cwd
+    key = data.get("session_id") or data.get("thread-id") or f"{agent}:{cwd}"
+    pane = os.environ.get("TMUX_PANE", "")
+    target = sh("tmux", "display", "-p", "-t", pane, "#S:#I") if pane else ""
+    tmux_session = target.split(":")[0].removeprefix("ag-") if target else ""
+    active = hypr("activewindow") or {}
+    now = time.time()
+
+    if event in ("Prompt", "UserPromptSubmit"):
+        with state() as d:
+            e = d.get(key, {})
+            if TERMINALS.search(active.get("class", "")):   # you just typed into it, so this is its window
+                e.update(address=active["address"], ws=active["workspace"]["name"])
+            e.update(agent=agent, proj=proj, cwd=cwd, state="working", since=now, target=target, reminded=False)
+            d[key] = e
+        return
+
+    ntype = data.get("notification_type", "")
+    needs = event == "Notification" and ntype != "idle_prompt"
+    if event == "Notification" and ntype == "idle_prompt":
+        return   # "still idle" after it already finished: the bar already shows it, don't nag twice
+    raw = data.get("message", "") if needs else (data.get("last-assistant-message") or data.get("last_assistant_message") or "")
+    with state() as d:
+        e = d.get(key, {})
+        win = window_for(e, agent, proj, tmux_session)
+        if win: e.update(address=win["address"], ws=win["workspace"]["name"])
+        looking = bool(win) and active.get("address") == win["address"]
+        e.update(agent=agent, proj=proj, cwd=cwd, target=target, since=now, reminded=False,
+                 state="seen" if looking else ("needs" if needs else "done"),
+                 summary=one_line(raw) if raw else ("Waiting for your input" if needs else "Finished its turn"))
+        d[key] = e
+    subprocess.Popen(["pkill", "-RTMIN+12", "waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if looking:
+        return
+    # popup in the background so the agent is never held up by the summary or the notification
+    if os.fork() == 0:
+        os.setsid()
+        deliver(key, agent, proj, raw, needs, target)
+        os._exit(0)
+
+
+def deliver(key, agent, proj, raw, needs, target):
+    summary = (ai_summary(raw) if raw and not needs else None)
+    with state() as d:
+        e = d.get(key, {})
+        if summary: e["summary"] = summary
+        if e.get("state") == "seen": return   # you switched to it while we were summarising
+        ws, addr, text = e.get("ws", "?"), e.get("address", ""), e.get("summary", "")
+    name = NAMES.get(agent, agent.title())
+    title = f"{name} needs you · {proj}" if needs else f"{name} finished · {proj}"
+    body = f"{text}\nWorkspace {ws}"
+    helper = os.path.expanduser("~/.config/hypr/scripts/notify-action.py")
+    args = [helper, "-t", "0" if needs else "12", "-i", "dialog-question-symbolic" if needs else "emblem-ok-symbolic", title, body, "show=Go to it"]
+    act = sh(*args, timeout=600)
+    if act == "show":
+        if target: sh("tmux", "select-window", "-t", target)
+        if addr: sh("hyprctl", "dispatch", "focuswindow", f"address:{addr}")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
+        assert one_line("## Done\n\nI fixed the **clock** so left click opens the calendar. Also tests.") == "Done I fixed the clock so left click opens the calendar."
+        assert one_line("ok") == "ok"
+        assert one_line("x " * 200).endswith("…")
+        assert "code" not in one_line("Changed it.\n```python\ncode\n```")
+        print("ok"); sys.exit(0)
+    main()

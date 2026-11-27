@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Files → Scripts → "Copy device path" (board, docs/REMOTE.md)
+exec board _nautilus copy

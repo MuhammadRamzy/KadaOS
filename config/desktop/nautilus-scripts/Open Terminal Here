@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Nautilus → Scripts → "Open Terminal Here": open the terminal in the current folder.
+dir="${NAUTILUS_SCRIPT_CURRENT_URI#file://}"
+dir="$(printf '%b' "${dir//%/\\x}")"   # URL-decode
+[ -d "$dir" ] || dir="$HOME"
+exec ptyxis --new-window -d "$dir"

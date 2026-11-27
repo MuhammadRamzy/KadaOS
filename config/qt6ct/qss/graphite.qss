@@ -1,0 +1,6 @@
+QPushButton { border-radius: 8px; padding: 6px 16px; background: #2c2c31; border: 1px solid #38383e; }
+QPushButton:hover { background: #36363c; }
+QPushButton:default { background: #5b9cff; color: #0e0e10; border: none; font-weight: 600; }
+QLineEdit, QComboBox, QSpinBox { border-radius: 8px; padding: 6px 8px; background: #0e0e10; border: 1px solid #38383e; }
+QLineEdit:focus { border-color: #5b9cff; }
+QToolTip { background: #2c2c31; color: #f2f2f5; border: 1px solid #38383e; border-radius: 6px; }

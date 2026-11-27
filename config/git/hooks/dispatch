@@ -1,0 +1,12 @@
+#!/bin/sh
+# Global git hooks (git config --global core.hooksPath ~/.config/git/hooks).
+# pre-commit: leak scan first (secret-scan). Every hook then runs the repo's own hook, if it has one,
+# so per-repo hooks (git-lfs, pre-commit framework…) keep working.
+name=$(basename "$0")
+if [ "$name" = pre-commit ] && [ -z "${SKIP_SECRET_SCAN:-}" ]; then
+  scan="$HOME/.local/bin/secret-scan"
+  if [ -x "$scan" ]; then "$scan" || exit 1; fi
+fi
+own="$(git rev-parse --git-common-dir 2>/dev/null)/hooks/$name"
+if [ -x "$own" ]; then exec "$own" "$@"; fi
+exit 0

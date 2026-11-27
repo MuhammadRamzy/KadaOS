@@ -1,0 +1,5 @@
+{"label": "lock", "action": "~/.config/hypr/scripts/lock.sh", "text": "Lock  (L)", "keybind": "l"}
+{"label": "logout", "action": "hyprctl dispatch exit || loginctl terminate-session \"$XDG_SESSION_ID\"", "text": "Log out  (E)", "keybind": "e"}
+{"label": "suspend", "action": "systemctl suspend", "text": "Sleep  (S)", "keybind": "s"}
+{"label": "reboot", "action": "systemctl reboot", "text": "Restart  (R)", "keybind": "r"}
+{"label": "shutdown", "action": "systemctl poweroff", "text": "Shut down  (P)", "keybind": "p"}

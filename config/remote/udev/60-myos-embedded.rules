@@ -1,0 +1,27 @@
+# Embedded boards and debug probes for the logged-in user (installed by scripts/phase12-embedded.sh).
+# uaccess = whoever is at the keyboard gets access, no group or re-login needed. Reload: udevadm control --reload
+
+# Serial adapters and board consoles
+SUBSYSTEM=="tty", KERNEL=="ttyUSB[0-9]*|ttyACM[0-9]*", TAG+="uaccess"
+
+# Raspberry Pi Pico / Pico 2 (BOOTSEL, picotool), Raspberry Pi Debug Probe
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2e8a", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="2e8a", TAG+="uaccess"
+# ST-Link V2 / V2-1 / V3
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="3744|3748|374a|374b|374d|374e|374f|3752|3753|3754", TAG+="uaccess"
+# CMSIS-DAP / DAPLink (USB and HID)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0d28", ATTRS{idProduct}=="0204", TAG+="uaccess"
+KERNEL=="hidraw*", ATTRS{idVendor}=="0d28", TAG+="uaccess"
+# SEGGER J-Link
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1366", TAG+="uaccess"
+# Espressif USB-JTAG/serial (ESP32-S3/C3/C6)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="303a", TAG+="uaccess"
+# FTDI JTAG (FT2232H / FT232H, used by OpenOCD)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010|6011|6014", TAG+="uaccess"
+# Black Magic Probe
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6017|6018", TAG+="uaccess"
+# Arduino / Adafruit / Seeed bootloaders
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2341|239a|2886|1b4f", TAG+="uaccess"
+
+# Keep ModemManager from probing boards (it sends AT commands and blocks the port for ~20 s after plug-in)
+ATTRS{idVendor}=="2e8a|2341|239a|303a|10c4|1a86|0403|067b|1d50", ENV{ID_MM_DEVICE_IGNORE}="1"

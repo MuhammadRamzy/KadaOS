@@ -1,0 +1,32 @@
+{
+  "trivy": {
+    "version": "v0.74.0",
+    "url": "https://github.com/aquasecurity/trivy/releases/download/v0.74.0/trivy_0.74.0_Linux-64bit.tar.gz",
+    "sha256": "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
+  },
+  "syft": {
+    "version": "v1.52.0",
+    "url": "https://github.com/anchore/syft/releases/download/v1.52.0/syft_1.52.0_linux_amd64.tar.gz",
+    "sha256": "caeedb81fb0491615f1ebd1761e4145d41ee86dd2cc7bf80669f9f5ad9d6133d"
+  },
+  "grype": {
+    "version": "v0.119.0",
+    "url": "https://github.com/anchore/grype/releases/download/v0.119.0/grype_0.119.0_linux_amd64.tar.gz",
+    "sha256": "3fa2dc4b924621ab65404cf08d0b8438d896d80ab949c9d5a4ca283c36004c9b"
+  },
+  "jadx": {
+    "version": "v1.5.6",
+    "url": "https://github.com/skylot/jadx/releases/download/v1.5.6/jadx-1.5.6.zip",
+    "sha256": "545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974"
+  },
+  "cutter": {
+    "version": "v2.5.0",
+    "url": "https://github.com/rizinorg/cutter/releases/download/v2.5.0/Cutter-v2.5.0-Linux-x86_64.AppImage",
+    "sha256": "b8ad215d7a9e2af9e1f463511229f16e1f4745a0fb541413e5f4787f949ac0cf"
+  },
+  "enum4linux-ng": {
+    "version": "c2b1668ab12a2013d83a0811c1afe3fd2cfd1fb8",
+    "url": "https://raw.githubusercontent.com/ParrotSec/enum4linux-ng/c2b1668ab12a2013d83a0811c1afe3fd2cfd1fb8/enum4linux-ng.py",
+    "sha256": "a948a9d105594931b083ce864c4019ffe137f3b30cba6ddf0bec331da748147d"
+  }
+}

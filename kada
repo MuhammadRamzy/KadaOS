@@ -1,0 +1,162 @@
+#!/usr/bin/env bash
+# KadaOS installer: pick an order from the menu, or go à la carte.
+#
+#   ./kada                      the menu (whiptail; plain prompts if whiptail is missing)
+#   ./kada --order chaya-kadi   an order, no questions        ./kada --items desktop,dev,ai   just these (+ what they need)
+#   ./kada --list               the menu board                ./kada --dry-run …              show the plan, change nothing
+#   ./kada --yes …              don't ask to confirm
+#
+# Every step is a script in scripts/ that's safe to run again (it skips what's already there, backs up configs it replaces
+# and logs to setup.log). Your password is asked once at the start. Run it as yourself, not with sudo.
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+S="$ROOT/scripts"
+
+# ── the menu board ──────────────────────────────────────────────────────────────────────────────────────────────
+# id | name | what you get | scripts | size | time | needs
+ITEMS=(
+  "base|Base kitchen|packages, zsh, modern terminal tools, folders|phase1-base|1 GB|10 min|"
+  "desktop|Hyprland desktop|Graphite theme, bar, Super+Space (one search for everything), panels, recording, jobs, storage, hydration|phase8-hyprland phase8b-hyprland-polish terminal-style|0.6 GB|10 min|base"
+  "secrets|Secrets|KeePassXC vault, gitleaks, a leak scan before every commit|phase14-secrets|0.1 GB|2 min|base"
+  "trust|Network trust|Home / Work / Public per Wi-Fi: random MAC, encrypted DNS, firewall on public networks|phase15-network-trust|tiny|1 min|desktop"
+  "dev|Developer kit|Python (uv), Node, Rust, Go, Java, VS Code, Docker, gh, lazygit|phase2-dev phase3-docker|3 GB|20 min|base"
+  "agents|Coding agents|Claude Code, Codex, Antigravity, the agent task board and multi-agent workflow|phase4-agents-docs phase11-agents|0.5 GB|5 min|dev"
+  "security|Security workbench|firewall + hardening, 60+ pentest/RE tools, scoped recipes, reports, isolated lab VMs|phase5-security-backup phase6-ai-security-lab install-security|4 GB|25 min|base"
+  "ai|Local AI|the assistant, dictation, OCR, file search by meaning, private web search (all on-device)|phase10-ai-desktop install-search|7 GB|20 min|desktop dev"
+  "remote|Remote devices|SSH boards, serial console, Raspberry Pis and microcontrollers, who's on my network|phase12-embedded|0.1 GB|3 min|base"
+  "phone|Phone link|Android: files and links both ways, clipboard, find my phone, alerts anywhere|phase13-phone|0.2 GB|3 min|desktop"
+  "ros|Robotics|ROS 2 Lyrical + an isolated Space ROS image|phase9-ros|3 GB|20 min|base"
+  "brand|Boot & login look|the KadaOS mark on the boot screen and the login screen (undo: phase17-brand.sh undo)|phase17-brand|tiny|2 min|desktop"
+  "usbguard|USB guard|new USB devices stay blocked until you allow them (be at the laptop; asks you to plug things in)|phase16-usbguard|tiny|2 min|desktop"
+)
+ORDERS=(
+  "chaya|Chaya|just tea: the desktop, the theme, Super+Space and the panels. The light start.|base desktop"
+  "chaya-kadi|Chaya & Kadi|tea and a snack: the desktop plus secrets and network trust for every day|base desktop secrets trust"
+  "kattan|Kattan Chaya|strong black tea: the security workbench on the desktop|base desktop secrets trust security"
+  "porotta|Porotta Special|the developer kit and the coding agents|base desktop secrets dev agents"
+  "pazhampori|Pazhampori|the crowd favourite: the local AI layer (assistant, dictation, OCR, search)|base desktop dev ai"
+  "omelette|Omelette, made to order|remote devices, embedded boards and the phone link|base desktop remote phone"
+  "sadhya|Full Sadhya|the feast: everything on the menu (USB guard stays à la carte: it needs you at the laptop)|base desktop secrets trust dev agents security ai remote phone ros brand"
+)
+
+field() { local IFS='|' parts; read -r -a parts <<<"$1"; echo "${parts[$2]:-}"; }
+item() { local x; for x in "${ITEMS[@]}"; do [ "$(field "$x" 0)" = "$1" ] && { echo "$x"; return; }; done; }
+order() { local x; for x in "${ORDERS[@]}"; do [ "$(field "$x" 0)" = "$1" ] && { echo "$x"; return; }; done; }
+
+# expand dependencies; keep the menu-board order (it's already dependency-safe)
+resolve() {
+  local want=" $* " changed=1 id dep
+  while [ "$changed" = 1 ]; do
+    changed=0
+    for id in $want; do
+      for dep in $(field "$(item "$id")" 6); do
+        case "$want" in *" $dep "*) ;; *) want="$want$dep "; changed=1;; esac
+      done
+    done
+  done
+  for x in "${ITEMS[@]}"; do id="$(field "$x" 0)"; case "$want" in *" $id "*) printf '%s ' "$id";; esac; done
+}
+
+board() {
+  echo "KadaOS · the menu"; echo
+  for x in "${ORDERS[@]}"; do printf '  %-24s %s\n' "$(field "$x" 1)" "$(field "$x" 2)"; printf '  %-24s %s\n\n' "--order $(field "$x" 0)" "→ $(field "$x" 3)"; done
+  echo "À la carte (--items a,b,c):"
+  for x in "${ITEMS[@]}"; do printf '  %-10s %-20s %s · %s\n' "$(field "$x" 0)" "$(field "$x" 1)" "$(field "$x" 4)" "$(field "$x" 5)"; done
+}
+
+plan_text() {
+  local id x
+  for id in $1; do x="$(item "$id")"; printf '  • %-20s %-7s %-7s %s\n' "$(field "$x" 1)" "$(field "$x" 4)" "$(field "$x" 5)" "$(field "$x" 2)"; done
+}
+
+# ── arguments ───────────────────────────────────────────────────────────────────────────────────────────────────
+mode=menu; sel=""; dry=0; yes=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --order) o="$(order "${2:-}")"; [ -n "$o" ] || { echo "No such order: ${2:-}. ./kada --list"; exit 2; }; sel="$(field "$o" 3)"; mode=run; shift 2;;
+    --items) sel="${2//,/ }"; for i in $sel; do [ -n "$(item "$i")" ] || { echo "No such item: $i. ./kada --list"; exit 2; }; done; mode=run; shift 2;;
+    --list) board; exit 0;;
+    --dry-run) dry=1; shift;;
+    --yes|-y) yes=1; shift;;
+    -h|--help) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0;;
+    *) echo "Unknown option: $1 (./kada --help)"; exit 2;;
+  esac
+done
+
+if [ "$(id -u)" = 0 ]; then echo "Run ./kada as yourself, not with sudo (it asks for your password once)."; exit 1; fi
+
+# ── the menu ────────────────────────────────────────────────────────────────────────────────────────────────────
+if [ "$mode" = menu ]; then
+  if command -v whiptail >/dev/null && [ -t 0 ]; then
+    args=(); for x in "${ORDERS[@]}"; do args+=("$(field "$x" 0)" "$(field "$x" 1): $(field "$x" 2)"); done
+    args+=("carte" "À la carte: pick the dishes yourself")
+    choice=$(whiptail --title "KadaOS" --menu "A thattukada setup. All you want, all you can desire, open late.\n\nWhat will it be?" \
+             24 110 9 "${args[@]}" 3>&1 1>&2 2>&3) || exit 0
+    if [ "$choice" = carte ]; then
+      args=(); for x in "${ITEMS[@]}"; do args+=("$(field "$x" 0)" "$(field "$x" 1) ($(field "$x" 4), $(field "$x" 5)): $(field "$x" 2)" OFF); done
+      sel=$(whiptail --title "KadaOS · à la carte" --checklist "Space to pick, Enter when done. What a dish needs is added for you." \
+            24 130 12 "${args[@]}" 3>&1 1>&2 2>&3 | tr -d '"') || exit 0
+    else
+      sel="$(field "$(order "$choice")" 3)"
+    fi
+  else
+    board; echo
+    read -r -p "Order (e.g. chaya-kadi) or items (e.g. desktop,dev): " ans
+    if [ -n "$(order "$ans")" ]; then sel="$(field "$(order "$ans")" 3)"; else sel="${ans//,/ }"; fi
+    for i in $sel; do [ -n "$(item "$i")" ] || { echo "No such item: $i"; exit 2; }; done
+  fi
+fi
+[ -n "${sel// /}" ] || { echo "Nothing picked."; exit 0; }
+steps="$(resolve $sel)"
+
+echo; echo "Your order:"; plan_text "$steps"; echo
+if [ "$dry" = 1 ]; then
+  echo "Dry run: these scripts would run, in this order:"
+  for id in $steps; do for s in $(field "$(item "$id")" 3); do echo "  scripts/$s"; done; done
+  exit 0
+fi
+
+# ── checks before cooking ───────────────────────────────────────────────────────────────────────────────────────
+. /etc/os-release 2>/dev/null || true
+if [ "${ID:-}" != ubuntu ]; then echo "KadaOS is made for Ubuntu (found: ${PRETTY_NAME:-unknown}). Stopping."; exit 1; fi
+case "${VERSION_ID:-0}" in 24.04|24.10|25.04|25.10|26.04|26.10) ;; *) echo "Note: tested on Ubuntu 24.04–26.04; you have ${VERSION_ID:-?}.";; esac
+free_gb=$(df -BG --output=avail "$HOME" | tail -1 | tr -dc 0-9)
+[ "${free_gb:-0}" -ge 15 ] || { echo "Only ${free_gb} GB free in your home folder; KadaOS needs at least 15 GB (more for AI/security)."; exit 1; }
+getent hosts archive.ubuntu.com >/dev/null || { echo "No internet connection (can't reach archive.ubuntu.com)."; exit 1; }
+# scripts and configs refer to the repo as ~/KadaOS: if you cloned it elsewhere, that name points here
+if [ "$ROOT" != "$HOME/KadaOS" ]; then
+  if [ -L "$HOME/KadaOS" ] || [ ! -e "$HOME/KadaOS" ]; then ln -sfn "$ROOT" "$HOME/KadaOS"
+  else echo "$HOME/KadaOS already exists and isn't this folder. Move it, or clone KadaOS there."; exit 1; fi
+fi
+if [ "$yes" != 1 ]; then read -r -p "Start cooking? [Y/n] " ok; case "${ok:-y}" in [Yy]*) ;; *) exit 0;; esac; fi
+
+echo "Your password, once (for apt, firewall and services):"
+sudo -v || exit 1
+( while true; do sudo -n true; sleep 50; kill -0 "$$" 2>/dev/null || exit; done ) 2>/dev/null &
+# shellcheck disable=SC2024 # setup.log belongs to you; only dpkg needs sudo
+sudo DEBIAN_FRONTEND=noninteractive dpkg --configure -a >>"$ROOT/setup.log" 2>&1 || true
+
+# ── cooking ─────────────────────────────────────────────────────────────────────────────────────────────────────
+ok=(); bad=(); start=$(date +%s)
+for id in $steps; do
+  x="$(item "$id")"; echo; echo "━━ $(field "$x" 1) ━━"
+  fine=1
+  for s in $(field "$x" 3); do
+    f="$S/$s.sh"; [ -f "$f" ] || f="$S/$s.py"
+    case "$f" in *.py) python3 "$f" || fine=0;; *) bash "$f" || fine=0;; esac
+  done
+  if [ "$fine" = 1 ]; then ok+=("$(field "$x" 1)"); else bad+=("$(field "$x" 1)"); fi
+done
+bash "$S/postflight.sh" >/dev/null 2>&1 || true
+
+echo; echo "━━ Served in $(( ($(date +%s) - start) / 60 )) min ━━"
+for o in "${ok[@]}"; do echo "  ✓ $o"; done
+for b in "${bad[@]}"; do echo "  ✗ $b (details in setup.log; run ./kada --items again, it picks up where it stopped)"; done
+cat <<'EOF'
+
+Next:
+  • Log out, pick "Hyprland" at the login screen, log in.
+  • Press Super + Space and type what you want. That's the only shortcut you need ("help" shows the rest).
+  • Guides: docs/INDEX.md · Adapting KadaOS to your machine: docs/ADAPTING.md
+EOF
+[ ${#bad[@]} -eq 0 ]

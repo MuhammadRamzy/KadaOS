@@ -1,0 +1,15 @@
+# terminal workflow start
+export PATH="$HOME/.bun/bin:$PATH"
+setopt HIST_VERIFY HIST_REDUCE_BLANKS HIST_EXPIRE_DUPS_FIRST
+PROMPT_EOL_MARK=''
+if [[ -o interactive && -t 0 && -t 1 && "$TERM" != dumb ]]; then
+  [ -f /usr/share/doc/fzf/examples/completion.zsh ] && source /usr/share/doc/fzf/examples/completion.zsh
+  ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=#8b83a5'
+  [ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ] && source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+  [ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ] && source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+  if [[ -z "${SSH_CONNECTION:-}" && "${TERM_PROGRAM:-}" != vscode && "${KADAOS_BANNER:-1}" != 0 ]]; then
+    python3 "$HOME/.config/terminal-greeting.py"
+  fi
+  command -v starship >/dev/null && eval "$(starship init zsh)"
+fi
+# terminal workflow end

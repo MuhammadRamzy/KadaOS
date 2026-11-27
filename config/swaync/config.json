@@ -1,0 +1,141 @@
+{
+  "positionX": "right",
+  "positionY": "top",
+  "layer": "overlay",
+  "control-center-layer": "top",
+  "control-center-margin-top": 8,
+  "control-center-margin-right": 10,
+  "control-center-margin-bottom": 10,
+  "control-center-width": 400,
+  "control-center-height": 700,
+  "fit-to-screen": true,
+  "notification-window-width": 390,
+  "notification-icon-size": 44,
+  "timeout": 6,
+  "timeout-low": 3,
+  "timeout-critical": 0,
+  "hide-on-clear": false,
+  "hide-on-action": true,
+  "widgets": [
+    "title",
+    "buttons-grid",
+    "volume",
+    "backlight",
+    "dnd",
+    "notifications"
+  ],
+  "widget-config": {
+    "title": {
+      "text": "Control center",
+      "clear-all-button": true,
+      "button-text": "Clear"
+    },
+    "dnd": {
+      "text": "Do not disturb"
+    },
+    "volume": {
+      "label": "󰕾",
+      "show-per-app": false
+    },
+    "backlight": {
+      "label": "󰃠",
+      "device": "nvidia_wmi_ec_backlight"
+    },
+    "notifications": {
+      "vexpand": false
+    },
+    "buttons-grid": {
+      "buttons-per-row": 2,
+      "actions": [
+        {
+          "label": "󰖩   Wi-Fi",
+          "type": "toggle",
+          "active": false,
+          "command": "~/.config/hypr/scripts/cc-toggle.sh wifi",
+          "update-command": "~/.config/hypr/scripts/cc-toggle.sh wifi state"
+        },
+        {
+          "label": "󰂯   Bluetooth",
+          "type": "toggle",
+          "active": false,
+          "command": "~/.config/hypr/scripts/cc-toggle.sh bt",
+          "update-command": "~/.config/hypr/scripts/cc-toggle.sh bt state"
+        },
+        {
+          "label": "󰖔   Night light",
+          "type": "toggle",
+          "active": false,
+          "command": "~/.config/hypr/scripts/cc-toggle.sh night",
+          "update-command": "~/.config/hypr/scripts/cc-toggle.sh night state"
+        },
+        {
+          "label": "󰓶   Pad control",
+          "type": "toggle",
+          "active": false,
+          "command": "~/.config/hypr/scripts/cc-toggle.sh tablet",
+          "update-command": "~/.config/hypr/scripts/cc-toggle.sh tablet state"
+        },
+        {
+          "label": "󰄀   Screenshot",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.config/hypr/scripts/screenshot.sh menu'"
+        },
+        {
+          "label": "󰅇   Clipboard",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/myos-panel clipboard'"
+        },
+        {
+          "label": "󰚩   Assistant",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/ai-chat'"
+        },
+        {
+          "label": "󰍬   Talk to assistant",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/ai-chat --listen'"
+        },
+        {
+          "label": "󰭹   Find files",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/ai-search'"
+        },
+        {
+          "label": "󰍬   Dictate",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/ai-dictate toggle'"
+        },
+        {
+          "label": "󰘥   Shortcuts",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.config/hypr/scripts/keyhelp.sh'"
+        },
+        {
+          "label": "󰓅   Power mode",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.config/hypr/scripts/power-profile.sh cycle'"
+        },
+        {
+          "label": "󰘮   Profile",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/profile menu'"
+        },
+        {
+          "label": "󰖌   Hydration",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/myos-hydration panel'"
+        },
+        {
+          "label": "󰋊   Storage",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/myos-panel storage'"
+        },
+        {
+          "label": "󰕥   Security",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/myos-panel security'"
+        },
+        {
+          "label": "󰘬   Projects",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.local/bin/myos-panel projects'"
+        },
+        {
+          "label": "󰐥   Settings",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.config/hypr/scripts/settings.sh'"
+        },
+        {
+          "label": "󰐥   Power",
+          "command": "sh -c 'swaync-client -cp; sleep 0.3; ~/.config/hypr/scripts/power-menu.sh'"
+        }
+      ]
+    }
+  }
+}

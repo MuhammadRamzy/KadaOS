@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# fai-chat — simple terminal chat with the local model (can check the laptop too). Empty line or Ctrl+D to quit.
+printf '\033[38;2;224;184;101mLocal AI\033[0m \033[2m(configured model · on-device · can check this laptop)\033[0m\n'
+while IFS= read -e -r -p $'\n\033[38;2;142;197;224m› \033[0m' q && [ -n "$q" ]; do echo; fai sys "$q"; done
