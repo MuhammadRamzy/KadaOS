@@ -1,0 +1,14 @@
+{
+  "policies": {
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true,
+    "DisablePocket": true,
+    "DontCheckDefaultBrowser": true,
+    "NoDefaultBookmarks": true,
+    "Preferences": {
+      "media.ffmpeg.vaapi.enabled": {"Value": true, "Status": "default"},
+      "widget.use-xdg-desktop-portal.file-picker": {"Value": 1, "Status": "default"},
+      "browser.tabs.unloadOnLowMemory": {"Value": true, "Status": "default"}
+    }
+  }
+}

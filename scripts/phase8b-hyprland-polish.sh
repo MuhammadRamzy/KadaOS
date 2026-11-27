@@ -73,6 +73,7 @@ log "configs installed; previous versions in $bk"
 
 # Native desktop apps (Quick Settings panels, launcher, pickers, file actions, cheatsheet)
 bash "$root/scripts/install-panels.sh" | tee -a "$LOG" || log "install-panels failed"
+bash "$root/scripts/install-browsers.sh" | tee -a "$LOG" || log "install-browsers failed"
 bash "$root/scripts/install-hydration.sh" | tee -a "$LOG" || log "install-hydration failed"
 
 # swaync: systemd-managed, Hyprland-only

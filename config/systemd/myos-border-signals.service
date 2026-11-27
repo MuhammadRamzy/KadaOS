@@ -1,0 +1,18 @@
+[Unit]
+Description=KadaOS border signals (look-away reminder, attention, battery) on the window outline
+Documentation=file:%h/.local/share/myos/border_signals.py
+ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland
+StartLimitIntervalSec=120
+StartLimitBurst=4
+
+[Service]
+ExecStart=/usr/bin/python3 %h/.local/share/myos/border_signals.py daemon
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=5
+UMask=0077
+NoNewPrivileges=yes
+RestrictSUIDSGID=yes
+
+[Install]
+WantedBy=default.target

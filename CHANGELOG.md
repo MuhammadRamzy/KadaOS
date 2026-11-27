@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1 · 2026-11-27 · The front of the shop
+
+New screens, a quieter way to get your attention, and a lot less CPU.
+
+- **Lock and login screens**: the KadaOS backdrop (the mark drawn as glass, its cursor glowing), a big 12-hour clock,
+  and the same input as Super + Space. The login (GDM) has no avatar cards; the boot screen is a new graphite splash with
+  a softly blinking cursor. Optional and fully reversible: `bash scripts/phase17-brand.sh` (`undo` restores the theme
+  that was selected before).
+- **Border signals** (`border-signal`): the window outline as a quiet signal. A look-away reminder after 20 minutes at
+  the screen, an amber flash on a window that needs you, a low-battery breath, and `border-signal done|fail` for your
+  scripts and agents. Never while fullscreen or locked.
+- **Browsers**: Chrome tuned through `~/.config/chrome-flags.conf` (touchpad swipes, hardware video decoding), plus Zen
+  for tab-heavy work (checksum-verified install, Super + Alt + B, import from one Chrome profile).
+- **Top bar** (auto-hide): slides in after the cursor rests at the edge; its watcher went from ~40% of a CPU core to 0.4%.
+- Fixes: Super + Space now always takes typing after reopening; the Storage panel's clean-up reports real results.
+
 ## 1.0 · 2026-11-27 · Opening day
 
 The first public serving.

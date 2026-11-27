@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="22 18 84 84" role="img" aria-labelledby="title desc">
-  <title id="title">KadaOS — open command</title>
-  <desc id="desc">A stall awning above a command chevron and blue cursor. For dark backgrounds.</desc>
-  <path fill="#ffffff" d="M24 48 40 24h48l16 24Z"/>
-  <path fill="#ffffff" d="m32 64 24 16-24 16v-8l12-8-12-8Z"/>
-  <path fill="#5b9cff" d="M64 88h32v8H64Z"/>
-</svg>

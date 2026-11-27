@@ -44,16 +44,6 @@ case ${1:-start} in
       sleep 2
     done ;;
   watch)
-    # ponytail: polls the cursor 5x/s (hyprctl has no cursor events); cheap, but a socket-based listener would be idle-free.
-    echo $$ > "$WATCH_PID"; shown=0; pid=""
-    while :; do
-      now=$(pgrep -x waybar | head -1)
-      if [ -z "$now" ]; then sleep 1; continue; fi
-      if [ "$now" != "$pid" ]; then pid=$now; shown=0; sleep 1; continue; fi   # (re)started hidden; SIGUSR1 before it's ready would kill it
-      y=$(hyprctl cursorpos 2>/dev/null | cut -d, -f2 | tr -d ' ')
-      if [ "$shown" = 0 ] && [ "${y:-99}" -le 2 ]; then kill -USR1 "$pid"; shown=1
-      elif [ "$shown" = 1 ] && [ "${y:-0}" -gt 60 ]; then kill -USR1 "$pid"; shown=0; fi
-      sleep 0.2
-    done ;;
+    echo $$ > "$WATCH_PID"; exec python3 "$(dirname "$0")/bar-watch.py" ;;   # socket-based, no process per poll
   *) echo "usage: bar.sh on|off|auto|toggle|start" >&2; exit 2 ;;
 esac

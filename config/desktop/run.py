@@ -514,6 +514,8 @@ def run_app():
         ("CTF workspace…", term("CTF", f'read -r -p "CTF name: " n && {B}/seclab ctf "$n"'), "applications-games-symbolic"),
         ("Downloads: tidy (preview)", term("tidy", f"{B}/tidy"), "folder-download-symbolic"),
         ("Downloads: tidy now", f"{B}/tidy --apply | tail -1 | xargs -0 notify-send -a Downloads 'Downloads tidied'", "folder-download-symbolic"),
+        ("Border signals: show them all (look away, attention, done, fail, battery)", f"{B}/border-signal test", "starred-symbolic"),
+        ("Zen: import from Chrome (bookmarks, history, passwords; pick the profile)", f"{B}/zen --migration", "web-browser-symbolic"),
     ]
     def ask(title, prompt, cmd):
         """A small terminal that asks one thing ($a) and runs cmd with it (no single quotes in cmd)."""
@@ -628,6 +630,8 @@ def run_app():
                ("Monitor layouts", HOME / ".config/myos/monitor-profiles.json", "displays monitors"),
                ("Local AI settings", HOME / ".config/local-ai/config.json", "model ollama assistant"),
                ("Hydration settings", HOME / ".config/myos/hydration.json", "water reminders"),
+               ("Border signals settings", HOME / ".config/myos/border-signals.json", "look away eye break 20 minutes reminder outline window border attention"),
+               ("Chrome flags (swipes, video decode)", HOME / ".config/chrome-flags.conf", "chrome browser flags wayland gpu"),
                ("Shell (zsh)", HOME / ".zshrc", "terminal aliases path"),
                ("Launcher settings (Chrome profile…)", HOME / ".config/myos/launcher.json", "launcher super space browser chrome profile")]
     apps = [a for a in Gio.AppInfo.get_all() if a.should_show()]
@@ -938,6 +942,8 @@ def run_app():
             return False
 
         def _focus(self, *_):
+            if self.is_active():      # focus the search box once the compositor really hands us the keyboard (reopens too)
+                self.entry.grab_focus(); return
             if not self.is_active() and self.is_visible() and time.time() - self._born > 0.6:
                 self.dismiss()
 
@@ -1091,7 +1097,7 @@ def run_app():
             self._rows = self.results(self.entry.get_text())
             for title, sub, icon, kind, fn, key in self._rows[:40]:
                 self.list.append(self._make_row(title, sub, icon, kind, fn, key))
-            self._select_from(0, 1)
+            self._select_from(0, 1, focus=False)          # select, but never take focus from the search box
             self._gen += 1
             q = self.entry.get_text().strip()
             if q and looks_like_sentence(q) and getattr(self, "_weak", False):
@@ -1111,13 +1117,15 @@ def run_app():
             if sel is None or sel.get_index() == 1: self.list.select_row(row)
             return False
 
-        def _select_from(self, i, step):
-            """Select the next row that can be run, skipping section headers."""
+        def _select_from(self, i, step, focus=True):
+            """Select the next row that can be run, skipping section headers. focus scrolls it into view (arrow keys,
+            which hand focus straight back to the search box); a list rebuild must not take focus, or typing after
+            a reopen lands in the list (the live-status refresh rebuilds it just after the window appears)."""
             while 0 <= i:
                 row = self.list.get_row_at_index(i)
                 if row is None: return
                 if row.get_selectable():
-                    self.list.select_row(row); row.grab_focus() if step and i else None
+                    self.list.select_row(row); row.grab_focus() if focus and step and i else None
                     return
                 i += step
 
@@ -1144,7 +1152,7 @@ def run_app():
                 r = self.list.get_selected_row()
                 step = 1 if keyval == Gdk.KEY_Down else -1
                 self._select_from((r.get_index() if r else -1) + step, step)
-                self.entry.grab_focus_without_selecting()
+                self.entry.grab_focus()
                 return True
             return False
 

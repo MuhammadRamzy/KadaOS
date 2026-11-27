@@ -1,0 +1,73 @@
+
+/* ── KadaOS login screen (appended to Yaru's gdm.css by scripts/phase17-brand.sh) ──
+   The idea: the KadaOS mark is a prompt under an awning, so the login is a prompt too. No avatars or cards:
+   names in quiet type, a blue marker on the chosen one, and the password typed on a monospace prompt line. */
+#lockDialogGroup {
+  background-color: #111113;
+  background-image: url("file:///usr/share/pixmaps/kadaos-backdrop.jpg");
+  background-size: cover;
+  background-position: center; }
+.login-dialog { background-color: transparent; }
+.login-dialog-logo-bin { margin: 2em 0 3.5em; }
+
+/* no avatars (there are no profile pictures to show) */
+.login-dialog .user-widget .user-icon {
+  icon-size: 0; width: 0; height: 0; padding: 0; margin: 0; border-width: 0;
+  background-color: transparent; box-shadow: none; }
+.login-dialog .user-widget .user-icon StIcon { padding: 0; }
+.login-dialog .user-widget.vertical .user-icon { icon-size: 0; width: 0; height: 0; }
+.login-dialog .user-widget.vertical .user-icon StIcon { padding: 0; icon-size: 0; }
+.login-dialog .user-widget.horizontal { spacing: 0; }
+.login-dialog .user-widget.vertical { spacing: 0; }
+
+/* user list: names, not cards */
+.login-dialog-user-list-view .login-dialog-user-list { spacing: 4px; }
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item {
+  background-color: transparent; border-radius: 10px; padding: 14px 22px; box-shadow: none; }
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item .user-widget-label {
+  font-size: 1.45em; font-weight: 300; color: rgba(255, 255, 255, 0.62); }
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:hover {
+  background-color: rgba(255, 255, 255, 0.04); }
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:hover .user-widget-label,
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:focus .user-widget-label,
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:selected .user-widget-label {
+  color: #ffffff; }
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:focus,
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:selected,
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:focus:hover,
+.login-dialog-user-list-view .login-dialog-user-list .login-dialog-user-list-item:selected:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 3px 0 0 0 #5b9cff !important; }           /* the cursor, standing up */
+.login-dialog-not-listed-button, .login-dialog-not-listed-button:hover, .login-dialog-not-listed-button:focus {
+  background-color: transparent; margin-top: 18px; }
+.login-dialog-not-listed-label { color: rgba(255, 255, 255, 0.40); font-size: 0.9em; }
+.login-dialog-not-listed-button:hover .login-dialog-not-listed-label,
+.login-dialog-not-listed-button:focus .login-dialog-not-listed-label { color: rgba(255, 255, 255, 0.85); }
+
+/* password: the name, then the field, styled like the Super+Space search box (the setup's signature input) */
+.login-dialog .user-widget.vertical .user-widget-label {
+  font-size: 1.9em; font-weight: 600; margin-bottom: 1.1em; color: #ffffff; }
+.login-dialog .login-dialog-prompt-entry, .login-dialog .login-dialog-prompt-entry:hover {
+  font-family: "Ubuntu Sans", sans-serif; font-size: 13pt; font-weight: 400; color: #f2f2f5;
+  width: 21em; min-height: 26px; padding: 11px 16px; border-radius: 12px;
+  background-color: rgba(23, 23, 26, 0.92); border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.45) !important;
+  caret-color: #5b9cff; selection-background-color: rgba(91, 156, 255, 0.40); selected-color: #ffffff; }
+.login-dialog .login-dialog-prompt-entry:focus {
+  border: 1px solid rgba(91, 156, 255, 0.90); box-shadow: 0 0 0 3px rgba(91, 156, 255, 0.22) !important; }
+.login-dialog .login-dialog-prompt-entry StLabel.hint-text { color: rgba(242, 242, 245, 0.42); }
+.login-dialog-button.cancel-button, .login-dialog-button.cancel-button:hover, .login-dialog-button.cancel-button:focus {
+  border-radius: 12px; padding: 12px; color: rgba(255, 255, 255, 0.75);
+  background-color: rgba(23, 23, 26, 0.92); border: 1px solid rgba(255, 255, 255, 0.10); }
+.login-dialog-button.cancel-button:hover { background-color: rgba(40, 40, 46, 0.95); color: #ffffff; }
+
+/* the big clock: GDM's top-bar clock, made tall and transparent (the lock screen's clock, on the login) */
+#panel { background-color: transparent; height: 12em; }
+#panel .panel-button.clock-display, #panel .panel-button.clock-display:hover, #panel .panel-button.clock-display:focus {
+  box-shadow: none; background-color: transparent; }
+#panel .panel-button.clock-display .clock, #panel .panel-button.clock-display:hover .clock {
+  font-family: "Ubuntu Sans", sans-serif; font-size: 76pt; font-weight: 700;
+  color: rgba(242, 242, 245, 0.93); box-shadow: none; text-shadow: 0 4px 18px rgba(0, 0, 0, 0.45); }
+
+.login-dialog-message, .login-dialog-message-hint { color: rgba(255, 255, 255, 0.70); }
+.login-dialog-message.login-dialog-message-warning { color: #ffb454; }

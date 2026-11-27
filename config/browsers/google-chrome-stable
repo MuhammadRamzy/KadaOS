@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Chrome with the flags in ~/.config/chrome-flags.conf (one per line, # comments). Installed by install-browsers.sh.
+flags=()
+if [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/chrome-flags.conf" ]; then
+  while IFS= read -r l; do l="${l%%#*}"; l="${l#"${l%%[![:space:]]*}"}"; l="${l%"${l##*[![:space:]]}"}"; [ -n "$l" ] && flags+=("$l"); done \
+    < "${XDG_CONFIG_HOME:-$HOME/.config}/chrome-flags.conf"
+fi
+exec /usr/bin/google-chrome-stable "${flags[@]}" "$@"

@@ -48,6 +48,11 @@ if systemctl --user is-enabled --quiet myos-hydration.service; then
   done
   chk "hydration unit matches repo" "cmp -s '$root/config/systemd/myos-hydration.service' '$HOME/.config/systemd/user/myos-hydration.service'"
 fi
+if systemctl --user is-enabled --quiet myos-border-signals.service; then
+  chk "border signals service active" 'systemctl --user is-active myos-border-signals.service'
+  chk "border signals match repo" "cmp -s '$root/config/desktop/border_signals.py' '$HOME/.local/share/myos/border_signals.py' && cmp -s '$root/config/systemd/myos-border-signals.service' '$HOME/.config/systemd/user/myos-border-signals.service'"
+  chk "border at the theme colour (no signal stuck)" '[ "$(hyprctl getoption general:col.active_border | head -1)" = "custom type: $(sed -nE "s/.*col.active_border = rgba\((..)(..)(..)(..)\).*/\4\1\2\3/p" ~/.config/hypr/colors.conf) 0deg" ]'
+fi
 chk "Bluetooth on (not rfkill-blocked)"    '! rfkill list bluetooth | grep -q "Soft blocked: yes" && bluetoothctl show | grep -q "Powered: yes"'
 chk "Blueman power plugins disabled"       'gsettings get org.blueman.general plugin-list | grep -q PowerManager'
 echo "Shortcuts"

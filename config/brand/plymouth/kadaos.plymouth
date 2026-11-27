@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=KadaOS
+Description=KadaOS: graphite, the mark with a blinking cursor, the wordmark
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/kadaos
+ScriptFile=/usr/share/plymouth/themes/kadaos/kadaos.script

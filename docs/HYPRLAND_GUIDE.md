@@ -239,9 +239,10 @@ In the terminal: `?? what you want` suggests a command, and `why` explains the l
 - To check a config for errors, run `Hyprland --verify-config`.
 - To re-apply everything from the repo, run `bash ~/KadaOS/scripts/phase8b-hyprland-polish.sh`.
   Your old configs are backed up to `~/.config/setup-backups/`.
-- The KadaOS mark (sources in `config/brand/`) is on the bar's apps button, beside the Super + Space search box and in
-  the lock screen's corner. For the boot and login screens, run `! bash scripts/phase17-brand.sh` (`… undo` restores
-  Ubuntu's). After changing an SVG, `python3 config/brand/render.py` remakes the PNGs.
+- The KadaOS mark (sources in `config/brand/`) is on the bar's apps button and beside the Super + Space search box.
+  The lock screen is a big clock over the KadaOS backdrop (the mark drawn as glass, its cursor glowing). For the
+  matching boot and login screens, run `! bash scripts/phase17-brand.sh` (`… undo` restores Ubuntu's, including the
+  theme that was selected before). After changing the brand, `python3 config/brand/render.py` remakes the images.
 
 ## 5b. Self-test
 Run `bash ~/KadaOS/scripts/desktop-check.sh` inside Hyprland. It checks the config, the background services, every shortcut and the scripts, and prints PASS or FAIL for each.

@@ -52,6 +52,18 @@ class Disk(unittest.TestCase):
         self.assertIn("! sudo apt clean", res["r"][1], "root items are never run: the command is shown")
         self.assertEqual(res["zz"], (False, "unknown item"))
 
+    def test_failed_command_is_reported_and_flags_are_not_ids(self):
+        import io, json, contextlib, subprocess
+        bad = lambda: subprocess.CompletedProcess([], 1, "", "permission denied\n")
+        its = [{"id": "d", "title": "", "why": "", "size": 1, "how": bad}]
+        self.assertEqual(disk.clean(["d"], its), [("d", False, "permission denied")])
+        orig = disk.items; disk.items = lambda dock=None: [{"id": "k", "title": "", "why": "", "size": 1, "how": lambda: None}]
+        try:
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out): disk.main(["clean", "k", "--json"])
+        finally: disk.items = orig
+        self.assertEqual([r[0] for r in json.loads(out.getvalue())], ["k"], "--json is a flag, not an item")
+
     def test_report_shape(self):
         r = disk.report(dock={})
         self.assertEqual(set(r), {"disk", "items", "safe_total"})

@@ -1,0 +1,54 @@
+# KadaOS boot screen (Plymouth script module): graphite, the mark in the middle with its cursor blinking,
+# the wordmark at the bottom. A disk-password prompt and boot messages appear under the mark when needed.
+Window.SetBackgroundTopColor(0.067, 0.067, 0.075);      # #111113, same as the login screen
+Window.SetBackgroundBottomColor(0.067, 0.067, 0.075);
+
+W = Window.GetWidth(); H = Window.GetHeight(); X = Window.GetX(); Y = Window.GetY();
+cx = X + W / 2; cy = Y + H / 2;
+
+mark = Sprite(Image("mark.png"));
+mx = cx - 60; my = cy - 80;                              # the 120x108 mark, a little above centre
+mark.SetPosition(mx, my, 1);
+cursor = Sprite(Image("cursor.png"));
+cursor.SetPosition(mx + 60, my + 96, 2);           # where the cursor sits in the logo
+word = Sprite(Image("word.png"));
+word.SetPosition(cx - 137 / 2, Y + H - 72, 1); word.SetOpacity(0.55);
+
+global.t = 0;
+fun refresh() {                                          # ~50 calls a second
+  global.t = (global.t + 1) % 60;                        # a 1.2 s cycle: on, a soft fade out, off, a soft fade in
+  if (global.t < 24) a = 1;
+  else if (global.t < 30) a = 1 - (global.t - 24) / 6;
+  else if (global.t < 54) a = 0;
+  else a = (global.t - 54) / 6;
+  cursor.SetOpacity(a);
+}
+Plymouth.SetRefreshFunction(refresh);
+
+# ── messages (e.g. "checking disk") ──
+msg = Sprite(); msg.SetPosition(cx, cy + 140, 3);
+fun show_message(text) {
+  img = Image.Text(text, 0.75, 0.75, 0.78, 1, "Sans 11");
+  msg.SetImage(img); msg.SetX(cx - img.GetWidth() / 2); msg.SetOpacity(1);
+}
+Plymouth.SetMessageFunction(show_message);
+Plymouth.SetDisplayMessageFunction(show_message);
+fun hide_message(text) { msg.SetOpacity(0); }
+Plymouth.SetHideMessageFunction(hide_message);
+
+# ── disk password ──
+prompt = Sprite(); prompt.SetPosition(cx, cy + 60, 3);
+dots = Sprite(); dots.SetPosition(cx, cy + 92, 3);
+fun display_password(text, bullets) {
+  p = Image.Text(text, 0.75, 0.75, 0.78, 1, "Sans 11");
+  prompt.SetImage(p); prompt.SetX(cx - p.GetWidth() / 2); prompt.SetOpacity(1);
+  s = ""; for (i = 0; i < bullets; i++) s = s + "● ";
+  if (bullets == 0) s = "_";
+  d = Image.Text(s, 1, 1, 1, 1, "Sans 14");
+  dots.SetImage(d); dots.SetX(cx - d.GetWidth() / 2); dots.SetOpacity(1);
+}
+Plymouth.SetDisplayPasswordFunction(display_password);
+fun display_normal() { prompt.SetOpacity(0); dots.SetOpacity(0); }
+Plymouth.SetDisplayNormalFunction(display_normal);
+fun display_question(text, entry) { display_password(text, 0); d = Image.Text(entry, 1, 1, 1, 1, "Sans 14"); dots.SetImage(d); dots.SetX(cx - d.GetWidth() / 2); }
+Plymouth.SetDisplayQuestionFunction(display_question);

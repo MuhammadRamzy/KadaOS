@@ -173,7 +173,11 @@ def clean(ids, its=None):
         if not it: res.append((i, False, "unknown item")); continue
         if it["how"] is None: res.append((i, False, f"needs your password: ! {it['cmd']}")); continue
         before = shutil.disk_usage("/").free
-        try: it["how"](); res.append((i, True, f"freed {human(max(0, shutil.disk_usage('/').free - before))}"))
+        try:
+            r = it["how"]()
+            bad_ = [x for x in (r if isinstance(r, tuple) else (r,)) if isinstance(x, subprocess.CompletedProcess) and x.returncode]
+            if bad_: res.append((i, False, (bad_[0].stderr or bad_[0].stdout or "failed").strip().splitlines()[-1][:200])); continue
+            res.append((i, True, f"freed {human(max(0, shutil.disk_usage('/').free - before))}"))
         except Exception as e: res.append((i, False, str(e)))
     return res
 
@@ -189,7 +193,7 @@ def main(argv=None):
     if argv[:1] in (["-h"], ["--help"], ["help"]): print(__doc__.strip()); return OK
     if argv[:1] == ["clean"]:
         its = items()
-        ids = [i["id"] for i in its if i["how"] is not None and i["id"] not in ("trash", "chrome-cache")] if argv[1:] == ["--all-safe"] else argv[1:]
+        ids = [i["id"] for i in its if i["how"] is not None and i["id"] not in ("trash", "chrome-cache")] if "--all-safe" in argv else [a for a in argv[1:] if not a.startswith("--")]
         if not ids: print("Usage: disk clean ID… (see `disk`)"); return USAGE
         res = clean(ids, its)
         if "--json" in argv: print(json.dumps(res)); return OK
