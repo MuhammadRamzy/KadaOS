@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.1 · 2026-11-27 · Fixing the shop front
+
+- **Login**: GNOME's top bar is back to its normal size (the big clock had stretched it, and the system menu with it);
+  the chosen name sits on a glass row. The glass backdrop stays.
+- **Boot**: the splash is the mark as glass with its cursor glowing and breathing, matching the login; the extra
+  wordmark is gone.
+- **No more splash flicker**: the boot screen used to appear, go dark and appear again when the graphics driver took
+  over. `phase17-brand.sh` now loads the display's driver (Intel or AMD) inside the boot image (early KMS) so it shows once.
+  Rerun `bash scripts/phase17-brand.sh` to get it; `undo` removes it too.
+
 ## 1.1 · 2026-11-27 · The front of the shop
 
 New screens, a quieter way to get your attention, and a lot less CPU.

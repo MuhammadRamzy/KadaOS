@@ -12,7 +12,7 @@ import re, sys
 KEYS = [("org/gnome/login-screen", "logo", "''"),
         ("org/gnome/desktop/interface", "accent-color", "'blue'"),
         ("org/gnome/desktop/interface", "color-scheme", "'prefer-dark'"),
-        ("org/gnome/desktop/interface", "clock-show-date", "false"),       # the big clock shows just the time
+        ("org/gnome/desktop/interface", "clock-show-date", "false"),       # the top-bar clock shows just the time
         ("org/gnome/desktop/interface", "clock-format", "'12h'")]
 OLD_LOGO = "logo='/usr/share/pixmaps/kadaos-login.png'"     # earlier versions set this, without a marker
 

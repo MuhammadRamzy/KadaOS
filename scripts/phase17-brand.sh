@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The KadaOS mark on the boot screen and the login screen (system-wide, so it asks for your password).
-#   Boot (Plymouth): graphite, the KadaOS mark with its cursor blinking, the wordmark at the bottom.
+#   Boot (Plymouth): graphite, the KadaOS mark as glass with its cursor glowing (the login's look, smaller).
 #   Login (GDM): a copy of Ubuntu's login theme on the KadaOS backdrop (the mark as glass), names without avatar cards,
 #   chosen through Ubuntu's own gdm-theme.gresource switch. Rerun after a big Ubuntu upgrade to refresh the copy.
 #   bash scripts/phase17-brand.sh          apply          bash scripts/phase17-brand.sh undo     back to Ubuntu's
@@ -17,6 +17,11 @@ YARU=/usr/share/gnome-shell/theme/Yaru/gnome-shell-theme.gresource
 sudo -v || { log "phase17 needs sudo"; exit 1; }
 
 STATE=/var/lib/kadaos   # what was selected before us, so undo can put it back
+# Early KMS: load the panel's GPU driver inside the boot image, so the splash starts on the real display. Without it the
+# splash draws on the firmware framebuffer, the driver takes over after switch-root, and the screen blanks and redraws.
+KMS=/etc/dracut.conf.d/10-kadaos-early-kms.conf
+boot_gpu() { for d in /sys/bus/pci/devices/*; do
+  [ "$(cat "$d/boot_vga" 2>/dev/null)" = 1 ] && [ -e "$d/driver" ] && basename "$(readlink "$d/driver")"; done; return 0; }
 
 # GDM's settings keyfile: our keys under a marker; same-named keys commented out and restored on undo
 greeter_settings() {
@@ -52,6 +57,7 @@ alt_restore() {
 
 if [ "${1:-}" = undo ]; then
   log "== phase17 brand undo =="
+  sudo rm -f "$KMS"
   if [ -e "$THEME/kadaos.plymouth" ] && alt_restore default.plymouth "$THEME/kadaos.plymouth"; then
     sudo rm -rf "${THEME:?}"
     echo "Rebuilding the boot image (a minute)…"; sudo update-initramfs -u >>"$LOG" 2>&1
@@ -67,8 +73,14 @@ log "== phase17 brand start =="
 # ── boot: our own script theme (no firmware logo, no spinner)
 if [ -d "$T" ] && command -v update-initramfs >/dev/null; then
   sudo rm -rf "${THEME:?}"; sudo install -d "$THEME"
-  sudo install -m 644 "$root"/config/brand/plymouth/{mark.png,cursor.png,word.png,kadaos.script,kadaos.plymouth} "$THEME"/
+  sudo install -m 644 "$root"/config/brand/plymouth/{mark.png,cursor.png,kadaos.script,kadaos.plymouth} "$THEME"/
   alt_select default.plymouth "$T/default.plymouth" "$THEME/kadaos.plymouth" 150
+  gpu="$(boot_gpu)"
+  case "$gpu" in   # only the open KMS drivers; nvidia in the boot image would bloat it and isn't driving the panel here
+    i915|xe|amdgpu) [ -d /etc/dracut.conf.d ] && echo "force_drivers+=\" $gpu \"   # KadaOS: early KMS, no splash flicker" |
+                      sudo tee "$KMS" >/dev/null && log "phase17: early KMS for $gpu" ;;
+    *) log "phase17: boot GPU driver '${gpu:-none}' not handled; early KMS skipped" ;;
+  esac
   echo "Rebuilding the boot image (a minute)…"
   if sudo update-initramfs -u >>"$LOG" 2>&1; then log "phase17: boot screen set"; else log "phase17: update-initramfs failed (see setup.log)"; fi
 else
